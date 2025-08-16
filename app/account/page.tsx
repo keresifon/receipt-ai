@@ -9,6 +9,17 @@ export default function AccountPage() {
   const [members, setMembers] = useState<any[]>([])
   const [invites, setInvites] = useState<any[]>([])
   const [loading, setLoading] = useState(false)
+  const [showInviteModal, setShowInviteModal] = useState(false)
+  const [inviteEmail, setInviteEmail] = useState('')
+  const [inviteRole, setInviteRole] = useState('member')
+  const [inviting, setInviting] = useState(false)
+  const [showSettingsModal, setShowSettingsModal] = useState(false)
+  const [accountName, setAccountName] = useState('')
+  const [accountDescription, setAccountDescription] = useState('')
+  const [saving, setSaving] = useState(false)
+  const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
+  const [inviteLink, setInviteLink] = useState('')
+  const [inviteEmailDisplay, setInviteEmailDisplay] = useState('')
 
   useEffect(() => {
     if (account) {
@@ -42,8 +53,126 @@ export default function AccountPage() {
     }
   }
 
+  const openSettingsModal = () => {
+    setAccountName(account.name || '')
+    setAccountDescription(account.description || '')
+    setShowSettingsModal(true)
+  }
+
+  const handleSaveSettings = async () => {
+    if (!account) return
+    
+    setSaving(true)
+    try {
+      const response = await fetch(`/api/accounts/${account._id}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: accountName,
+          description: accountDescription
+        })
+      })
+
+      if (response.ok) {
+        alert('Account settings updated successfully!')
+        setShowSettingsModal(false)
+        // Refresh the page to show updated data
+        window.location.reload()
+      } else {
+        const error = await response.json()
+        alert(`Failed to update settings: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Failed to update settings:', error)
+      alert('Failed to update settings. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  const copyToClipboard = async (text: string, button: HTMLButtonElement) => {
+    try {
+      await navigator.clipboard.writeText(text)
+      // Show success message
+      const originalText = button.textContent
+      const originalClass = button.className
+      button.textContent = 'Copied!'
+      button.className = 'btn btn-success'
+      setTimeout(() => {
+        button.textContent = originalText
+        button.className = originalClass
+      }, 2000)
+    } catch (err) {
+      // Fallback for older browsers
+      const textArea = document.createElement('textarea')
+      textArea.value = text
+      document.body.appendChild(textArea)
+      textArea.select()
+      try {
+        document.execCommand('copy')
+        // Show success message
+        const originalText = button.textContent
+        const originalClass = button.className
+        button.textContent = 'Copied!'
+        button.className = 'btn btn-success'
+        setTimeout(() => {
+          button.textContent = originalText
+          button.className = originalClass
+        }, 2000)
+      } catch (fallbackErr) {
+        alert('Failed to copy link. Please select and copy manually.')
+      }
+      document.body.removeChild(textArea)
+    }
+  }
+
   const handleSignOut = () => {
     signOut({ callbackUrl: '/auth/signin' })
+  }
+
+  const handleInviteMember = async () => {
+    if (!inviteEmail.trim()) return
+    
+    setInviting(true)
+    try {
+      const response = await fetch(`/api/accounts/${account._id}/invites`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          email: inviteEmail.trim(),
+          role: inviteRole
+        })
+      })
+
+      if (response.ok) {
+        const result = await response.json()
+        
+        // Always show the invite link for manual sharing
+        const inviteUrl = result.inviteUrl || `${window.location.origin}/auth/signup?invite=${result.invite.token}&email=${encodeURIComponent(inviteEmail)}&account=${account._id}`
+        
+        // Show the invite link modal
+        setInviteLink(inviteUrl)
+        setInviteEmailDisplay(inviteEmail)
+        setShowInviteLinkModal(true)
+        
+        setInviteEmail('')
+        setInviteRole('member')
+        setShowInviteModal(false)
+        loadAccountData() // Refresh the data
+      } else {
+        const error = await response.json()
+        alert(`Failed to send invite: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Failed to send invite:', error)
+      alert('Failed to send invite. Please try again.')
+    } finally {
+      setInviting(false)
+    }
   }
 
   if (isLoading) {
@@ -148,11 +277,17 @@ export default function AccountPage() {
             </div>
             <div className="card-body">
               <div className="d-grid gap-2">
-                <button className="btn btn-outline-primary">
+                <button 
+                  className="btn btn-outline-primary"
+                  onClick={() => setShowInviteModal(true)}
+                >
                   <i className="bi bi-person-plus me-2"></i>
                   Invite Family Member
                 </button>
-                <button className="btn btn-outline-secondary">
+                <button 
+                  className="btn btn-outline-secondary"
+                  onClick={openSettingsModal}
+                >
                   <i className="bi bi-gear me-2"></i>
                   Account Settings
                 </button>
@@ -199,7 +334,10 @@ export default function AccountPage() {
               <i className="bi bi-people me-2"></i>
               Account Members
             </h5>
-            <button className="btn btn-primary btn-sm">
+            <button 
+              className="btn btn-primary btn-sm"
+              onClick={() => setShowInviteModal(true)}
+            >
               <i className="bi bi-person-plus me-2"></i>
               Invite Member
             </button>
@@ -226,8 +364,8 @@ export default function AccountPage() {
                   <tbody>
                     {members.map((member) => (
                       <tr key={member._id}>
-                        <td>{member.name}</td>
-                        <td>{member.email}</td>
+                        <td>{member.user?.name || 'N/A'}</td>
+                        <td>{member.user?.email || 'N/A'}</td>
                         <td>
                           <span className={`badge bg-${member.role === 'admin' ? 'primary' : 'secondary'}`}>
                             {member.role.charAt(0).toUpperCase() + member.role.slice(1)}
@@ -247,6 +385,207 @@ export default function AccountPage() {
             ) : (
               <p className="text-muted text-center mb-0">No members found.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Invite Modal */}
+      {showInviteModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-person-plus me-2"></i>
+                  Invite Family Member
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowInviteModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Email Address</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    placeholder="Enter email address"
+                    value={inviteEmail}
+                    onChange={(e) => setInviteEmail(e.target.value)}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Role</label>
+                  <select
+                    className="form-select"
+                    value={inviteRole}
+                    onChange={(e) => setInviteRole(e.target.value)}
+                  >
+                    <option value="member">Member</option>
+                    <option value="viewer">Viewer</option>
+                  </select>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowInviteModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={handleInviteMember}
+                  disabled={inviting || !inviteEmail.trim()}
+                >
+                  {inviting ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Sending...
+                    </>
+                  ) : (
+                    'Send Invite'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Account Settings Modal */}
+      {showSettingsModal && (
+        <div className="modal fade show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">
+                  <i className="bi bi-gear me-2"></i>
+                  Account Settings
+                </h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowSettingsModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Account Name</label>
+                  <input
+                    type="text"
+                    className="form-control"
+                    placeholder="Enter account name"
+                    value={accountName}
+                    onChange={(e) => setAccountName(e.target.value)}
+                  />
+                </div>
+                <div className="mb-3">
+                  <label className="form-label">Description</label>
+                  <textarea
+                    className="form-control"
+                    rows={3}
+                    placeholder="Enter account description"
+                    value={accountDescription}
+                    onChange={(e) => setAccountDescription(e.target.value)}
+                  />
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowSettingsModal(false)}
+                >
+                  Cancel
+                </button>
+                <button 
+                  type="button" 
+                  className="btn btn-primary" 
+                  onClick={handleSaveSettings}
+                  disabled={saving}
+                >
+                  {saving ? (
+                    <>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                      Saving...
+                    </>
+                  ) : (
+                    'Save Changes'
+                  )}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Invite Link Modal */}
+      {showInviteLinkModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Invitation Link</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowInviteLinkModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <div className="mb-3">
+                  <label className="form-label">Email Address:</label>
+                  <input
+                    type="email"
+                    className="form-control"
+                    value={inviteEmailDisplay}
+                    readOnly
+                  />
+                </div>
+                
+                <div className="mb-3">
+                  <label className="form-label">Invitation Link:</label>
+                  <div className="input-group">
+                    <input
+                      type="text"
+                      className="form-control"
+                      value={inviteLink}
+                      readOnly
+                    />
+                    <button
+                      className="btn btn-outline-secondary"
+                      type="button"
+                      onClick={(event) => copyToClipboard(inviteLink, event.target as HTMLButtonElement)}
+                    >
+                      Copy Link
+                    </button>
+                  </div>
+                </div>
+
+                <div className="alert alert-info">
+                  <strong>Instructions:</strong>
+                  <ul className="mb-0 mt-2">
+                    <li>Copy the invitation link above</li>
+                    <li>Send it to <strong>{inviteEmailDisplay}</strong></li>
+                    <li>They can click the link to join your account</li>
+                  </ul>
+                </div>
+              </div>
+              <div className="modal-footer">
+                <button 
+                  type="button" 
+                  className="btn btn-secondary" 
+                  onClick={() => setShowInviteLinkModal(false)}
+                >
+                  Close
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       )}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { signIn, getSession } from 'next-auth/react'
+import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 import Link from 'next/link'
 
@@ -27,10 +27,8 @@ export default function SignInPage() {
       if (result?.error) {
         setError('Invalid email or password')
       } else {
-        const session = await getSession()
-        if (session) {
-          router.push('/')
-        }
+        // Redirect to dashboard after successful signin
+        router.push('/dashboard')
       }
     } catch (error) {
       setError('An error occurred. Please try again.')

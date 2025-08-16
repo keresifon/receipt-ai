@@ -1,7 +1,7 @@
 'use client'
 
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
+import { useState, useEffect } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
 export default function SignUpPage() {
@@ -15,7 +15,45 @@ export default function SignUpPage() {
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
+  const [isInvitation, setIsInvitation] = useState(false)
+  const [invitationData, setInvitationData] = useState<{
+    invite: string
+    email: string
+    account: string
+  } | null>(null)
+  const [accountInfo, setAccountInfo] = useState<{
+    name: string
+    description: string
+  } | null>(null)
   const router = useRouter()
+  const searchParams = useSearchParams()
+
+  useEffect(() => {
+    const invite = searchParams.get('invite')
+    const email = searchParams.get('email')
+    const account = searchParams.get('account')
+    
+    if (invite && email && account) {
+      setIsInvitation(true)
+      setInvitationData({ invite, email, account })
+      setFormData(prev => ({ ...prev, email }))
+      
+      // Fetch account information
+      fetchAccountInfo(account)
+    }
+  }, [searchParams])
+
+  const fetchAccountInfo = async (accountId: string) => {
+    try {
+      const response = await fetch(`/api/accounts/${accountId}`)
+      if (response.ok) {
+        const data = await response.json()
+        setAccountInfo(data)
+      }
+    } catch (error) {
+      console.error('Failed to fetch account info:', error)
+    }
+  }
 
   const handleChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData(prev => ({
@@ -36,18 +74,29 @@ export default function SignUpPage() {
     }
 
     try {
+      const requestBody = {
+        name: formData.name,
+        email: formData.email,
+        password: formData.password,
+        ...(isInvitation ? {} : {
+          accountName: formData.accountName,
+          accountDescription: formData.accountDescription
+        }),
+        ...(isInvitation ? {
+          invite: invitationData?.invite,
+          accountId: invitationData?.account
+        } : {})
+      }
+      
+      console.log('Signup request body:', requestBody)
+      console.log('Is invitation:', isInvitation)
+      
       const res = await fetch('/api/auth/signup', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify({
-          name: formData.name,
-          email: formData.email,
-          password: formData.password,
-          accountName: formData.accountName,
-          accountDescription: formData.accountDescription
-        }),
+        body: JSON.stringify(requestBody),
       })
 
       const data = await res.json()
@@ -56,8 +105,12 @@ export default function SignUpPage() {
         throw new Error(data.detail || 'Sign up failed')
       }
 
-      // Redirect to sign in page
-      router.push('/auth/signin?message=Account created successfully! Please sign in.')
+      // Redirect to sign in page with appropriate message
+      if (isInvitation) {
+        router.push('/auth/signin?message=Account joined successfully! Please sign in.')
+      } else {
+        router.push('/auth/signin?message=Account created successfully! Please sign in.')
+      }
     } catch (error: any) {
       setError(error.message)
     } finally {
@@ -70,8 +123,25 @@ export default function SignUpPage() {
       <div className="row justify-content-center">
         <div className="col-12 col-lg-8">
           <div className="text-center mb-4">
-            <h1 className="h2 fw-bold">Create Your Account</h1>
-            <p className="text-muted">Join Receipt AI and start managing your family's expenses</p>
+            <h1 className="h2 fw-bold">
+              {isInvitation ? 'Join Family Account' : 'Create Your Account'}
+            </h1>
+            <p className="text-muted">
+              {isInvitation 
+                ? `You've been invited to join ${accountInfo?.name || 'a family account'}`
+                : 'Join Receipt AI and start managing your family\'s expenses'
+              }
+            </p>
+            
+            {isInvitation && accountInfo && (
+              <div className="alert alert-info d-inline-block">
+                <i className="bi bi-info-circle me-2"></i>
+                <strong>Account:</strong> {accountInfo.name}
+                {accountInfo.description && (
+                  <span className="ms-2">- {accountInfo.description}</span>
+                )}
+              </div>
+            )}
           </div>
 
           <div className="card">
@@ -142,37 +212,41 @@ export default function SignUpPage() {
                     />
                   </div>
 
-                  <div className="col-12">
-                    <hr className="my-3" />
-                    <h6 className="text-muted mb-3">Family Account Details</h6>
-                  </div>
+                  {!isInvitation && (
+                    <>
+                      <div className="col-12">
+                        <hr className="my-3" />
+                        <h6 className="text-muted mb-3">Family Account Details</h6>
+                      </div>
 
-                  <div className="col-12 col-md-6">
-                    <label htmlFor="accountName" className="form-label">Account Name</label>
-                    <input
-                      type="text"
-                      id="accountName"
-                      name="accountName"
-                      className="form-control"
-                      value={formData.accountName}
-                      onChange={handleChange}
-                      required
-                      placeholder="e.g., Ekpenyong Family"
-                    />
-                  </div>
+                      <div className="col-12 col-md-6">
+                        <label htmlFor="accountName" className="form-label">Account Name</label>
+                        <input
+                          type="text"
+                          id="accountName"
+                          name="accountName"
+                          className="form-control"
+                          value={formData.accountName}
+                          onChange={handleChange}
+                          required
+                          placeholder="e.g., Ekpenyong Family"
+                        />
+                      </div>
 
-                  <div className="col-12 col-md-6">
-                    <label htmlFor="accountDescription" className="form-label">Description (Optional)</label>
-                    <input
-                      type="text"
-                      id="accountDescription"
-                      name="accountDescription"
-                      className="form-control"
-                      value={formData.accountDescription}
-                      onChange={handleChange}
-                      placeholder="Brief description of your account"
-                    />
-                  </div>
+                      <div className="col-12 col-md-6">
+                        <label htmlFor="accountDescription" className="form-label">Description (Optional)</label>
+                        <input
+                          type="text"
+                          id="accountDescription"
+                          name="accountDescription"
+                          className="form-control"
+                          value={formData.accountDescription}
+                          onChange={handleChange}
+                          placeholder="Brief description of your account"
+                        />
+                      </div>
+                    </>
+                  )}
                 </div>
 
                 <div className="mt-4">
@@ -184,10 +258,10 @@ export default function SignUpPage() {
                     {loading ? (
                       <>
                         <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                        Creating Account...
+                        {isInvitation ? 'Joining Account...' : 'Creating Account...'}
                       </>
                     ) : (
-                      'Create Account'
+                      isInvitation ? 'Join Account' : 'Create Account'
                     )}
                   </button>
 

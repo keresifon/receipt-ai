@@ -11,8 +11,20 @@ const SignupSchema = z.object({
   name: z.string().min(2, 'Name must be at least 2 characters'),
   email: z.string().email('Invalid email address'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  accountName: z.string().min(2, 'Account name must be at least 2 characters'),
-  accountDescription: z.string().optional()
+  accountName: z.string().min(2, 'Account name must be at least 2 characters').optional(),
+  accountDescription: z.string().optional(),
+  invite: z.string().optional(),
+  accountId: z.string().optional()
+}).refine((data) => {
+  // If it's an invitation, accountName is not required
+  if (data.invite && data.accountId) {
+    return true
+  }
+  // If it's not an invitation, accountName is required
+  return data.accountName && data.accountName.length >= 2
+}, {
+  message: "Account name is required for new accounts",
+  path: ["accountName"]
 })
 
 export async function POST(req: NextRequest) {
@@ -34,22 +46,61 @@ export async function POST(req: NextRequest) {
     // Hash password
     const hashedPassword = await bcrypt.hash(parsed.password, 12)
 
-    // Create account first
-    const accountDoc = {
-      name: parsed.accountName,
-      description: parsed.accountDescription || '',
-      createdAt: new Date(),
-      createdBy: '', // Will be updated after user creation
-      settings: {
-        currency: 'CAD',
-        timezone: 'America/Toronto',
-        allowInvites: true,
-        maxUsers: 10
-      }
-    }
+    let accountId: ObjectId
+    let userRole: 'admin' | 'member' | 'viewer' = 'admin'
 
-    const accountResult = await accounts.insertOne(accountDoc)
-    const accountId = accountResult.insertedId
+    if (parsed.invite && parsed.accountId) {
+      // Handle invitation - join existing account
+      try {
+        accountId = new ObjectId(parsed.accountId)
+        
+        // Verify the invite exists and is valid
+        const invites = db.collection('account_invites')
+        const invite = await invites.findOne({ 
+          token: parsed.invite,
+          email: parsed.email.toLowerCase(),
+          accountId: accountId,
+          status: 'pending'
+        })
+        
+        if (!invite) {
+          return NextResponse.json({ detail: 'Invalid or expired invitation' }, { status: 400 })
+        }
+        
+        // Set role based on invitation
+        userRole = invite.role
+        
+        // Mark invite as accepted
+        await invites.updateOne(
+          { _id: invite._id },
+          { $set: { status: 'accepted', acceptedAt: new Date() } }
+        )
+        
+      } catch (error) {
+        return NextResponse.json({ detail: 'Invalid account ID' }, { status: 400 })
+      }
+    } else {
+      // Create new account
+      // Note: accountName validation is handled by the schema above
+      const accountDoc = {
+        name: parsed.accountName!,
+        description: parsed.accountDescription || '',
+        createdAt: new Date(),
+        createdBy: '', // Will be updated after user creation
+        settings: {
+          currency: 'CAD',
+          timezone: 'America/Toronto',
+          allowInvites: true,
+          maxUsers: 10
+        }
+      }
+
+      const accountResult = await accounts.insertOne(accountDoc)
+      accountId = accountResult.insertedId
+
+      // Update account with creator info after user creation
+      // (We'll do this below)
+    }
 
     // Create user
     const userDoc = {
@@ -57,21 +108,23 @@ export async function POST(req: NextRequest) {
       email: parsed.email.toLowerCase(),
       password: hashedPassword,
       accountId: accountId,
-      role: 'admin' as const,
+      role: userRole,
       createdAt: new Date(),
       emailVerified: false
     }
 
     const userResult = await users.insertOne(userDoc)
 
-    // Update account with creator info
-    await accounts.updateOne(
-      { _id: accountId },
-      { $set: { createdBy: userResult.insertedId.toString() } }
-    )
+    // If this was a new account, update it with creator info
+    if (!parsed.invite) {
+      await accounts.updateOne(
+        { _id: accountId },
+        { $set: { createdBy: userResult.insertedId.toString() } }
+      )
+    }
 
     return NextResponse.json({ 
-      message: 'Account created successfully',
+      message: parsed.invite ? 'Account joined successfully' : 'Account created successfully',
       userId: userResult.insertedId.toString(),
       accountId: accountId.toString()
     })

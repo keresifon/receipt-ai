@@ -112,3 +112,12 @@ body {
     font-size: 1.25rem;
   }
 }
+
+/* Modal styles */
+.modal.show {
+  display: block !important;
+}
+
+.modal-backdrop {
+  background-color: rgba(0, 0, 0, 0.5);
+}

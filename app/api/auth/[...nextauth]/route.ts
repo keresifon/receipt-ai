@@ -52,6 +52,10 @@ export const authOptions: any = {
     strategy: 'jwt' as const,
     maxAge: 30 * 24 * 60 * 60, // 30 days
   },
+  pages: {
+    signIn: '/auth/signin',
+    signUp: '/auth/signup',
+  },
   callbacks: {
     async jwt({ token, user }: any) {
       if (user) {
@@ -67,11 +71,19 @@ export const authOptions: any = {
         session.user.role = token.role
       }
       return session
+    },
+    async redirect({ url, baseUrl }: any) {
+      // After sign in, if coming from signin page, go to dashboard
+      if (url.startsWith(`${baseUrl}/auth/signin`)) {
+        return `${baseUrl}/dashboard`
+      }
+      // After sign out, redirect to home
+      if (url.startsWith(`${baseUrl}/auth/signout`)) {
+        return `${baseUrl}`
+      }
+      // For all other URLs, don't interfere
+      return url
     }
-  },
-  pages: {
-    signIn: '/auth/signin',
-    signUp: '/auth/signup',
   },
   secret: process.env.NEXTAUTH_SECRET,
 }

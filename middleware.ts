@@ -15,16 +15,15 @@ export const config = {
   matcher: [
     '/',
     '/dashboard',
+    '/upload',
     '/records',
     '/account',
-    '/migrate',
     '/api/upload',
     '/api/analytics',
     '/api/records',
     '/api/items/:path*',
     '/api/categories',
     '/api/months',
-    '/api/migrate',
     '/api/debug',
     '/api/debug-db'
   ]
