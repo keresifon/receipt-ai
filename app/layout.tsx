@@ -1,30 +1,29 @@
 import '../styles/globals.css'
-import Link from 'next/link'
 import type { ReactNode } from 'react'
+import { NextAuthProvider } from './providers/NextAuthProvider'
+import { AuthProvider } from './providers/AuthProvider'
+import Navigation from './components/Navigation'
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (
     <html lang="en">
+      <head>
+        <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no" />
+      </head>
       <body>
-        <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
-          <div className="container">
-            <Link href="/" className="navbar-brand">
-              Receipt AI
-            </Link>
-            <div className="navbar-nav ms-auto">
-              <Link href="/" className="nav-link">
-                Upload
-              </Link>
-              <Link href="/dashboard" className="nav-link">
-                Dashboard
-              </Link>
-              <Link href="/records" className="nav-link">
-                Records
-              </Link>
-            </div>
-          </div>
-        </nav>
-        {children}
+        <NextAuthProvider>
+          <AuthProvider>
+            <Navigation />
+            {children}
+          </AuthProvider>
+        </NextAuthProvider>
+        
+        {/* Bootstrap JavaScript for mobile navigation */}
+        <script 
+          src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" 
+          integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" 
+          crossOrigin="anonymous"
+        />
       </body>
     </html>
   )

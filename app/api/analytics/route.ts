@@ -1,41 +1,32 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import clientPromise from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
 
-    // Group by receipt and calculate net totals per receipt
-    const receiptTotals = await items.aggregate([
-      { $addFields: {
-        amount: {
-          $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
-        },
-        descLower: { $toLower: { $ifNull: ['$description', ''] } }
-      } },
-      { $addFields: {
-        itemAmount: { $cond: [ { $in: ['$descLower', ['hst', 'discount']] }, 0, '$amount' ] },
-        hstAmount: { $cond: [ { $eq: ['$descLower', 'hst'] }, '$amount', 0 ] },
-        discountAmount: { $cond: [ { $eq: ['$descLower', 'discount'] }, { $abs: '$amount' }, 0 ] }
-      } },
-      { $group: {
-        _id: { receipt_id: '$receipt_id', date: { $substr: ['$date', 0, 7] }, store: '$store', category: '$category' },
-        itemTotal: { $sum: '$itemAmount' },
-        hstTotal: { $sum: '$hstAmount' },
-        discountTotal: { $sum: '$discountAmount' },
-        date: { $first: '$date' },
-        store: { $first: '$store' },
-        category: { $first: '$category' }
-      } },
-      { $addFields: { netTotal: { $subtract: [ { $add: ['$itemTotal', '$hstTotal'] }, '$discountTotal' ] } } }
-    ]).toArray()
+    // Filter by account
+    const accountId = new ObjectId(session.user.accountId)
+    const accountFilter = { accountId: accountId }
+
+
 
     const monthly = await items.aggregate([
+      { $match: accountFilter },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -60,7 +51,7 @@ export async function GET(_req: NextRequest) {
     ]).toArray()
 
     const byCategory = await items.aggregate([
-      { $match: { description: { $not: { $regex: /^(hst|discount)$/i } } } },
+      { $match: { $and: [accountFilter, { description: { $not: { $regex: /^(hst|discount)$/i } } }] } },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -72,6 +63,7 @@ export async function GET(_req: NextRequest) {
     ]).toArray()
 
     const byStore = await items.aggregate([
+      { $match: accountFilter },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -96,6 +88,7 @@ export async function GET(_req: NextRequest) {
     ]).toArray()
 
     const recent = await items.aggregate([
+      { $match: accountFilter },
       { $sort: { date: -1, _id: -1 } },
       { $limit: 25 },
       { $project: {
@@ -110,6 +103,7 @@ export async function GET(_req: NextRequest) {
     ]).toArray()
 
     const totalsAgg = await items.aggregate([
+      { $match: accountFilter },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -133,6 +127,15 @@ export async function GET(_req: NextRequest) {
     ]).toArray()
 
     const totals = totalsAgg[0] || { total: 0, count: 0 }
+
+    console.log('Analytics API Debug:', {
+      accountId: session.user.accountId,
+      monthlyData: monthly.length,
+      byCategory: byCategory.length,
+      byStore: byStore.length,
+      recent: recent.length,
+      totals: totals
+    })
 
     return NextResponse.json({ monthly, byCategory, byStore, recent, totals })
   } catch (e: any) {

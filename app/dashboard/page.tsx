@@ -92,9 +92,9 @@ export default function DashboardPage() {
   console.log('Today variable:', today)
 
   return (
-    <div className="container-fluid py-4">
+    <div className="container-fluid py-3 py-md-4">
       <div className="text-center mb-4">
-        <h1 className="display-4 fw-bold">Spending Dashboard</h1>
+        <h1 className="h2 h1-md fw-bold">Spending Dashboard</h1>
         <p className="lead text-muted">
           Track your expenses and analyze spending patterns
           <span className="d-block small text-muted mt-1">
@@ -115,9 +115,9 @@ export default function DashboardPage() {
 
 
 
-      <div className="row g-4 mb-4">
+      <div className="row g-3 g-md-4 mb-4">
         {/* Month Filter Card */}
-        <div className="col-md-3">
+        <div className="col-12 col-sm-6 col-md-3">
           <div className="card h-100">
             <div className="card-body">
               <div className="text-muted small text-uppercase fw-semibold mb-3">
@@ -155,7 +155,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Spend Card */}
-        <div className="col-md-3">
+        <div className="col-12 col-sm-6 col-md-3">
           <div className="card h-100">
             <div className="card-body d-flex align-items-center">
               <div className="flex-grow-1">
@@ -169,7 +169,7 @@ export default function DashboardPage() {
                   </small>
                 )}
               </div>
-              <div className="ms-3">
+              <div className="ms-3 d-none d-md-block">
                 <div className="bg-success bg-opacity-10 rounded p-3">
                   <i className="bi bi-currency-dollar text-success fs-4"></i>
                 </div>
@@ -179,7 +179,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Items Card */}
-        <div className="col-md-3">
+        <div className="col-12 col-sm-6 col-md-3">
           <div className="card h-100">
             <div className="card-body d-flex align-items-center">
               <div className="flex-grow-1">
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                   </small>
                 )}
               </div>
-              <div className="ms-3">
+              <div className="ms-3 d-none d-md-block">
                 <div className="bg-primary bg-opacity-10 rounded p-3">
                   <i className="bi bi-receipt text-primary fs-4"></i>
                 </div>
@@ -203,7 +203,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Distinct Stores Card */}
-        <div className="col-md-3">
+        <div className="col-12 col-sm-6 col-md-3">
           <div className="card h-100">
             <div className="card-body d-flex align-items-center">
               <div className="flex-grow-1">
@@ -217,7 +217,7 @@ export default function DashboardPage() {
                   </small>
                 )}
               </div>
-              <div className="ms-3">
+              <div className="ms-3 d-none d-md-block">
                 <div className="bg-info bg-opacity-10 rounded p-3">
                   <i className="bi bi-shop text-info fs-4"></i>
                 </div>
@@ -227,8 +227,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="row g-4 mb-4">
-        <div className="col-lg-6">
+      <div className="row g-3 g-md-4 mb-4">
+        <div className="col-12 col-lg-6">
           <div className="card h-100">
             <div className="card-header">
               <h5 className="card-title mb-0">
@@ -251,7 +251,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="col-lg-6">
+        <div className="col-12 col-lg-6">
           <div className="card h-100">
             <div className="card-header">
               <h5 className="card-title mb-0">
@@ -279,7 +279,7 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="row g-4 mb-4">
+      <div className="row g-3 g-md-4 mb-4">
         <div className="col-12">
           <div className="card">
             <div className="card-header">
