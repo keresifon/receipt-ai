@@ -1,10 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import clientPromise from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
     const search = searchParams.get('search') || ''
     const month = searchParams.get('month') || ''
@@ -17,8 +26,12 @@ export async function GET(req: NextRequest) {
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
 
+    // Filter by account
+    const accountId = new ObjectId(session.user.accountId)
+    const accountFilter = { accountId: accountId }
+
     // Build match criteria
-    const matchCriteria: any = {}
+    const matchCriteria: any = { ...accountFilter }
     
     if (search) {
       matchCriteria.$or = [

@@ -110,92 +110,99 @@ export default function HomePage() {
   }
 
   return (
-    <div className="container py-5">
+    <div className="container py-4 py-md-5">
       <div className="row justify-content-center">
-        <div className="col-lg-8">
-          <div className="text-center mb-5">
-            <h1 className="display-4 fw-bold text-dark">Receipt Scanner</h1>
+        <div className="col-12 col-lg-8">
+          <div className="text-center mb-4 mb-md-5">
+            <h1 className="h2 h1-md fw-bold text-dark">Receipt Scanner</h1>
             <p className="lead text-muted">Upload your receipt and let AI extract the details</p>
           </div>
 
           <div className="card">
-            <div className="card-body p-4">
+            <div className="card-body p-3 p-md-4">
               <form onSubmit={onSubmit}>
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Receipt Image</label>
-                  <input 
-                    type="file" 
-                    accept="image/*" 
-                    onChange={e => setFile(e.target.files?.[0] || null)} 
-                    className="form-control"
-                  />
-                  {file && (
-                    <div className="mt-2 text-success">
-                      <i className="bi bi-check-circle"></i> {file.name}
-                    </div>
-                  )}
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Date</label>
-                  <input 
-                    type="date" 
-                    value={date} 
-                    onChange={e => setDate(e.target.value)} 
-                    className="form-control"
-                  />
-                </div>
-
-                <div className="mb-3">
-                  <label className="form-label fw-semibold">Store</label>
-                  <select 
-                    value={store} 
-                    onChange={e => setStore(e.target.value)} 
-                    className="form-select"
-                  >
-                    <option value="">— Select store —</option>
-                    {STORES.map(s => <option key={s} value={s}>{s}</option>)}
-                  </select>
-                </div>
-
-                {store === 'Other (custom)' && (
-                  <div className="mb-3">
-                    <label className="form-label fw-semibold">Custom Store Name</label>
+                <div className="row g-3">
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Receipt Image</label>
                     <input 
-                      type="text" 
-                      value={customStore} 
-                      onChange={e => setCustomStore(e.target.value)} 
-                      placeholder="Enter store name" 
+                      type="file" 
+                      accept="image/*" 
+                      onChange={e => setFile(e.target.files?.[0] || null)} 
+                      className="form-control"
+                    />
+                    {file && (
+                      <div className="mt-2 text-success small">
+                        <i className="bi bi-check-circle"></i> {file.name}
+                      </div>
+                    )}
+                  </div>
+
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-semibold">Date</label>
+                    <input 
+                      type="date" 
+                      value={date} 
+                      onChange={e => setDate(e.target.value)} 
                       className="form-control"
                     />
                   </div>
-                )}
 
-                <div className="mb-4">
-                  <label className="form-label fw-semibold">Notes (optional)</label>
-                  <input 
-                    type="text" 
-                    placeholder="Add any notes about this receipt" 
-                    value={notes} 
-                    onChange={e => setNotes(e.target.value)} 
-                    className="form-control"
-                  />
+                  <div className="col-12 col-md-6">
+                    <label className="form-label fw-semibold">Store</label>
+                    <select 
+                      value={store} 
+                      onChange={e => setStore(e.target.value)} 
+                      className="form-select"
+                    >
+                      <option value="">— Select store —</option>
+                      {STORES.map(s => <option key={s} value={s}>{s}</option>)}
+                    </select>
+                  </div>
+
+                  {store === 'Other (custom)' && (
+                    <div className="col-12">
+                      <label className="form-label fw-semibold">Custom Store Name</label>
+                      <input 
+                        type="text" 
+                        value={customStore} 
+                        onChange={e => setCustomStore(e.target.value)} 
+                        placeholder="Enter store name" 
+                        className="form-control"
+                      />
+                    </div>
+                  )}
+
+                  <div className="col-12">
+                    <label className="form-label fw-semibold">Notes (optional)</label>
+                    <input 
+                      type="text" 
+                      placeholder="Add any notes about this receipt" 
+                      value={notes} 
+                      onChange={e => setNotes(e.target.value)} 
+                      className="form-control"
+                    />
+                  </div>
                 </div>
 
-                <button 
-                  type="submit"
-                  disabled={loading || !isReady} 
-                  className="btn btn-primary btn-lg w-100"
-                >
-                  {loading ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
-                      Processing...
-                    </>
-                  ) : (
-                    'Upload Receipt'
-                  )}
-                </button>
+                <div className="mt-4">
+                  <button 
+                    type="submit"
+                    disabled={loading || !isReady} 
+                    className="btn btn-primary btn-lg w-100"
+                  >
+                    {loading ? (
+                      <>
+                        <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                        Processing...
+                      </>
+                    ) : (
+                      <>
+                        <i className="bi bi-upload me-2 d-none d-sm-inline"></i>
+                        Upload Receipt
+                      </>
+                    )}
+                  </button>
+                </div>
               </form>
             </div>
           </div>
@@ -216,30 +223,33 @@ export default function HomePage() {
                 </h5>
                 <small className="text-muted">Please review the extracted items and assign categories</small>
               </div>
-              <div className="card-body">
+              <div className="card-body p-0">
                 <div className="table-responsive">
-                  <table className="table table-sm">
-                    <thead>
+                  <table className="table table-sm mb-0">
+                    <thead className="d-none d-md-table-header-group">
                       <tr>
                         <th>Description</th>
                         <th>Category</th>
-                        <th>Qty</th>
-                        <th>Unit Price</th>
-                        <th>Total</th>
+                        <th className="text-center">Qty</th>
+                        <th className="text-end">Unit Price</th>
+                        <th className="text-end">Total</th>
                       </tr>
                     </thead>
                     <tbody>
                       {lineItems.map((item, index) => (
-                        <tr key={index}>
-                          <td>
+                        <tr key={index} className="border-bottom">
+                          <td className="ps-3 pe-2">
+                            <div className="d-md-none small text-muted mb-1">Description</div>
                             <input
                               type="text"
                               value={item.description}
                               onChange={e => updateLineItem(index, 'description', e.target.value)}
                               className="form-control form-control-sm"
+                              placeholder="Item description"
                             />
                           </td>
-                          <td>
+                          <td className="px-2">
+                            <div className="d-md-none small text-muted mb-1">Category</div>
                             <select
                               value={item.category || ''}
                               onChange={e => updateLineItem(index, 'category', e.target.value || null)}
@@ -260,33 +270,36 @@ export default function HomePage() {
                               />
                             )}
                           </td>
-                          <td>
+                          <td className="px-2">
+                            <div className="d-md-none small text-muted mb-1">Qty</div>
                             <input
                               type="number"
                               value={item.quantity || ''}
                               onChange={e => updateLineItem(index, 'quantity', e.target.value ? Number(e.target.value) : null)}
-                              className="form-control form-control-sm"
-                              style={{ width: '80px' }}
+                              className="form-control form-control-sm text-center"
+                              placeholder="1"
                             />
                           </td>
-                          <td>
+                          <td className="px-2">
+                            <div className="d-md-none small text-muted mb-1">Unit Price</div>
                             <input
                               type="number"
                               step="0.01"
                               value={item.unit_price || ''}
                               onChange={e => updateLineItem(index, 'unit_price', e.target.value ? Number(e.target.value) : null)}
-                              className="form-control form-control-sm"
-                              style={{ width: '90px' }}
+                              className="form-control form-control-sm text-end"
+                              placeholder="0.00"
                             />
                           </td>
-                          <td>
+                          <td className="px-2 pe-3">
+                            <div className="d-md-none small text-muted mb-1">Total</div>
                             <input
                               type="number"
                               step="0.01"
                               value={item.total_price}
                               onChange={e => updateLineItem(index, 'total_price', Number(e.target.value) || 0)}
-                              className="form-control form-control-sm"
-                              style={{ width: '90px' }}
+                              className="form-control form-control-sm text-end"
+                              placeholder="0.00"
                             />
                           </td>
                         </tr>

@@ -1,10 +1,18 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/app/api/auth/[...nextauth]/route'
 import clientPromise from '@/lib/mongodb'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
+    const session = await getServerSession(authOptions)
+    
+    if (!session?.user) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const { searchParams } = new URL(req.url)
     const month = searchParams.get('month')
 
@@ -12,8 +20,9 @@ export async function GET(req: NextRequest) {
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
 
-    // Build match criteria for month filtering
-    const matchCriteria: any = {}
+    // Build match criteria for month filtering and account
+    const accountId = new ObjectId(session.user.accountId)
+    const matchCriteria: any = { accountId: accountId }
     if (month) {
       matchCriteria.date = { $regex: `^${month}-` }
     }
@@ -96,11 +105,40 @@ export async function GET(req: NextRequest) {
       receipt_id: item.receipt_id.toString()
     }))
 
-    // For monthly data, if filtering by month, just return that month
-    const monthly = month ? [{ 
-      month, 
-      total: totalsAgg[0]?.total || 0 
-    }] : []
+    // For monthly data, if filtering by month, return that month, otherwise return all months
+    let monthly
+    if (month) {
+      monthly = [{ 
+        month, 
+        total: totalsAgg[0]?.total || 0 
+      }]
+    } else {
+      // Get all months when no specific month is selected
+      monthly = await items.aggregate([
+        { $addFields: {
+          month: { $substr: ['$date', 0, 7] },
+          amount: {
+            $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
+          },
+          descLower: { $toLower: { $ifNull: ['$description', ''] } }
+        } },
+        { $addFields: {
+          itemAmount: { $cond: [ { $in: ['$descLower', ['hst', 'discount']] }, 0, '$amount' ] },
+          hstAmount: { $cond: [ { $eq: ['$descLower', 'hst'] }, '$amount', 0 ] },
+          discountAmount: { $cond: [ { $eq: ['$descLower', 'discount'] }, { $abs: '$amount' }, 0 ] }
+        } },
+        { $group: {
+          _id: { month: '$month', receipt_id: '$receipt_id' },
+          itemTotal: { $sum: '$itemAmount' },
+          hstTotal: { $sum: '$hstAmount' },
+          discountTotal: { $sum: '$discountAmount' }
+        } },
+        { $addFields: { netTotal: { $subtract: [ { $add: ['$itemTotal', '$hstTotal'] }, '$discountTotal' ] } } },
+        { $group: { _id: '$_id.month', total: { $sum: '$netTotal' } } },
+        { $project: { month: '$_id', total: 1, _id: 0 } },
+        { $sort: { month: -1 } }
+      ]).toArray()
+    }
 
     return NextResponse.json({
       totals: {
