@@ -1,5 +1,4 @@
 'use client'
-
 import { useState } from 'react'
 import { signIn } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
@@ -89,7 +88,7 @@ export default function SignInPage() {
                 >
                   {loading ? (
                     <>
-                      <span className="spinner-border spinner-border-sm me-2" role="status" aria-hidden="true"></span>
+                      <span className="spinner-border spinner-border-sm me-2" role="status"></span>
                       Signing In...
                     </>
                   ) : (
@@ -98,12 +97,12 @@ export default function SignInPage() {
                 </button>
 
                 <div className="text-center">
-                  <small className="text-muted">
+                  <p className="mb-0">
                     Don't have an account?{' '}
                     <Link href="/auth/signup" className="text-decoration-none">
                       Sign up here
                     </Link>
-                  </small>
+                  </p>
                 </div>
               </form>
             </div>

@@ -2,9 +2,8 @@ import NextAuth from 'next-auth'
 import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import clientPromise from '@/lib/mongodb'
-import { ObjectId } from 'mongodb'
 
-export const authOptions: any = {
+export const authOptions = {
   providers: [
     CredentialsProvider({
       name: 'credentials',
@@ -71,18 +70,6 @@ export const authOptions: any = {
         session.user.role = token.role
       }
       return session
-    },
-    async redirect({ url, baseUrl }: any) {
-      // After sign in, if coming from signin page, go to dashboard
-      if (url.startsWith(`${baseUrl}/auth/signin`)) {
-        return `${baseUrl}/dashboard`
-      }
-      // After sign out, redirect to home
-      if (url.startsWith(`${baseUrl}/auth/signout`)) {
-        return `${baseUrl}`
-      }
-      // For all other URLs, don't interfere
-      return url
     }
   },
   secret: process.env.NEXTAUTH_SECRET,

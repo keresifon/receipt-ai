@@ -1,17 +1,7 @@
 'use client'
-import { useMemo, useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
-
-const STORES = ['Walmart','Costco','No Frills','Loblaws','Sobeys','Metro','Dollarama','Shoppers Drug Mart','Starbucks','Tim Hortons','Amazon','Other (custom)']
-
-type LineItem = {
-  description: string
-  category: string | null
-  quantity: number | null
-  unit_price: number | null
-  total_price: number
-}
+import { useEffect } from 'react'
 
 export default function HomePage() {
   const { data: session, status } = useSession()
@@ -32,18 +22,17 @@ export default function HomePage() {
           <div className="spinner-border" role="status">
             <span className="visually-hidden">Loading...</span>
           </div>
-          <p className="mt-2">Loading...</p>
         </div>
       </div>
     )
   }
   
-  // Don't render upload form for authenticated users (they'll be redirected)
+  // Don't render for authenticated users (they'll be redirected)
   if (status === 'authenticated') {
     return null
   }
   
-  // Show upload form for unauthenticated users
+  // Show demo page for unauthenticated users
   return (
     <div className="container py-5">
       <div className="text-center mb-4">

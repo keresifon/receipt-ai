@@ -13,7 +13,6 @@ export default withAuth(
 
 export const config = {
   matcher: [
-    '/',
     '/dashboard',
     '/upload',
     '/records',
@@ -23,8 +22,6 @@ export const config = {
     '/api/records',
     '/api/items/:path*',
     '/api/categories',
-    '/api/months',
-    '/api/debug',
-    '/api/debug-db'
+    '/api/months'
   ]
 }

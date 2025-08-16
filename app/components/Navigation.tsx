@@ -40,19 +40,19 @@ export default function Navigation() {
             ) : session ? (
               <>
                 <Link href="/dashboard" className="nav-link">
-                  <i className="bi bi-graph-up me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-graph-up me-1"></i>
                   Dashboard
                 </Link>
                 <Link href="/upload" className="nav-link">
-                  <i className="bi bi-upload me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-upload me-1"></i>
                   Upload
                 </Link>
                 <Link href="/records" className="nav-link">
-                  <i className="bi bi-list-ul me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-list-ul me-1"></i>
                   Records
                 </Link>
                 <Link href="/account" className="nav-link">
-                  <i className="bi bi-person-circle me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-person-circle me-1"></i>
                   Account
                 </Link>
                 <button 
@@ -60,18 +60,18 @@ export default function Navigation() {
                   className="nav-link btn btn-link p-0 border-0"
                   style={{ background: 'none', textDecoration: 'none' }}
                 >
-                  <i className="bi bi-box-arrow-right me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-box-arrow-right me-1"></i>
                   Sign Out
                 </button>
               </>
             ) : (
               <>
                 <Link href="/auth/signin" className="nav-link">
-                  <i className="bi bi-box-arrow-in-right me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-box-arrow-in-right me-1"></i>
                   Sign In
                 </Link>
                 <Link href="/auth/signup" className="nav-link">
-                  <i className="bi bi-person-plus me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-person-plus me-1"></i>
                   Sign Up
                 </Link>
               </>
