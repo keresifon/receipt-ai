@@ -66,6 +66,36 @@ export async function GET(req: NextRequest) {
       { $sort: { total: -1 } },
     ]).toArray()
 
+    // Group small categories into "Other" for better chart readability
+    if (byCategory.length > 0) {
+      const totalSpending = byCategory.reduce((sum, item) => sum + item.total, 0)
+      const threshold = totalSpending * 0.05 // 5% threshold
+      
+      const mainCategories = []
+      let otherTotal = 0
+      let otherCount = 0
+      
+      byCategory.forEach(item => {
+        if (item.total >= threshold) {
+          mainCategories.push(item)
+        } else {
+          otherTotal += item.total
+          otherCount++
+        }
+      })
+      
+      // Add "Other" category if there are small categories
+      if (otherCount > 0) {
+        mainCategories.push({
+          category: `Other (${otherCount} categories)`,
+          total: otherTotal
+        })
+      }
+      
+      byCategory.length = 0
+      byCategory.push(...mainCategories)
+    }
+
     // Get by store with proper calculations
     const byStore = await items.aggregate([
       { $match: matchCriteria },

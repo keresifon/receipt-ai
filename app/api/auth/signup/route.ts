@@ -39,8 +39,66 @@ export async function POST(req: NextRequest) {
 
     // Check if user already exists
     const existingUser = await users.findOne({ email: parsed.email.toLowerCase() })
+    
     if (existingUser) {
-      return NextResponse.json({ detail: 'User with this email already exists' }, { status: 400 })
+      if (parsed.invite && parsed.accountId) {
+        // User exists and has invitation - allow them to join the account
+        try {
+          const accountId = new ObjectId(parsed.accountId)
+          
+          // Verify the invite exists and is valid
+          const invites = db.collection('account_invites')
+          const invite = await invites.findOne({ 
+            token: parsed.invite,
+            email: parsed.email.toLowerCase(),
+            accountId: accountId,
+            status: 'pending'
+          })
+          
+          if (!invite) {
+            return NextResponse.json({ detail: 'Invalid or expired invitation' }, { status: 400 })
+          }
+          
+          // Check if user is already a member of this account
+          const accountMembers = db.collection('account_members')
+          const existingMembership = await accountMembers.findOne({ 
+            accountId: accountId, 
+            userId: existingUser._id 
+          })
+          
+          if (existingMembership) {
+            return NextResponse.json({ 
+              detail: 'You are already a member of this account' 
+            }, { status: 400 })
+          }
+          
+          // Add user to account as member
+          await accountMembers.insertOne({
+            accountId: accountId,
+            userId: existingUser._id,
+            role: invite.role,
+            joinedAt: new Date()
+          })
+          
+          // Mark invite as accepted
+          await invites.updateOne(
+            { _id: invite._id },
+            { $set: { status: 'accepted', acceptedAt: new Date() } }
+          )
+          
+          return NextResponse.json({ 
+            message: 'Successfully joined account',
+            userId: existingUser._id.toString(),
+            accountId: accountId.toString()
+          })
+          
+        } catch (error) {
+          return NextResponse.json({ detail: 'Invalid account ID' }, { status: 400 })
+        }
+      } else {
+        // User exists but no invitation - return error
+        return NextResponse.json({ detail: 'User with this email already exists' }, { status: 400 })
+      }
     }
 
     // Hash password

@@ -322,41 +322,48 @@ export default function RecordsPage() {
 
   return (
     <div className="container py-3 py-md-4">
-      <div className="row mb-4">
-        <div className="col-12 col-md-8">
-          <h1 className="h3 mb-0">Records Management</h1>
-          {(month || date) && (
-            <small className="text-muted d-block mt-1">
-              {month && `Filtering ${new Date(month + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`}
-              {date && month && ' - '}
-              {date && `Date: ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
-            </small>
-          )}
-          <div className="mt-2">
-            <button
-              className="btn btn-sm btn-outline-success"
-              onClick={openAddForm}
-              title="Quick add HST or Discount items"
-            >
-              <i className="bi bi-plus-circle me-1"></i>
-              Quick Add HST/Discount
-            </button>
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
+          <h1 className="text-dark">Records Management</h1>
+          <p className="text-muted mb-0">
+            View, edit, and manage all your receipt records. 
+            <strong className="text-info"> HST/Discount items must be added to existing receipts.</strong>
+          </p>
+        </div>
+        <button
+          className="btn btn-outline-primary"
+          onClick={() => setShowAddForm(true)}
+        >
+          <i className="bi bi-plus-circle me-2"></i>
+          Quick Add HST/Discount
+        </button>
+      </div>
+      
+      {/* Important Note */}
+      <div className="alert alert-info mb-4">
+        <div className="d-flex align-items-start">
+          <i className="bi bi-info-circle-fill me-2 mt-1 text-info"></i>
+          <div>
+            <strong>Important:</strong> HST/Discount items are added to existing receipts. 
+            You must select a date and store where you already have a receipt. 
+            If no matching receipt exists, you'll need to create one first.
           </div>
         </div>
-        <div className="col-12 col-md-4 text-start text-md-end mt-3 mt-md-0">
-          {pagination && (
-            <>
-              <div className="fw-semibold">
-                {pagination.totalCount} total records
+      </div>
+      
+      <div className="col-12 col-md-4 text-start text-md-end mt-3 mt-md-0">
+        {pagination && (
+          <>
+            <div className="fw-semibold">
+              {pagination.totalCount} total records
+            </div>
+            {records.length > 0 && date && (
+              <div className="text-primary small">
+                Total Amount: ${totalAmount.toFixed(2)}
               </div>
-              {records.length > 0 && date && (
-                <div className="text-success small">
-                  Total Amount: ${totalAmount.toFixed(2)}
-                </div>
-              )}
-            </>
-          )}
-        </div>
+            )}
+          </>
+        )}
       </div>
 
       {/* Add HST/Discount Section */}
@@ -368,7 +375,9 @@ export default function RecordsPage() {
               Add HST or Discount Item
             </h6>
             <small className="text-muted">
-              Note: HST/Discount items are added to existing receipts. Select a date and store where you have a receipt.
+              <strong>Note:</strong> HST/Discount items are added to existing receipts. 
+              Select a date and store where you have a receipt. 
+              If no matching receipt exists, you'll need to create one first.
             </small>
           </div>
           <button
@@ -390,6 +399,17 @@ export default function RecordsPage() {
         </div>
         {showAddForm && (
           <div className="card-body">
+            {/* Helpful Tip */}
+            <div className="alert alert-warning mb-3">
+              <div className="d-flex align-items-start">
+                <i className="bi bi-lightbulb me-2 mt-1 text-warning"></i>
+                <div>
+                  <strong>Tip:</strong> First select a date and store where you already have a receipt. 
+                  The system will check if a matching receipt exists before allowing you to add HST/Discount items.
+                </div>
+              </div>
+            </div>
+            
             <div className="row g-3">
               <div className="col-12 col-sm-6 col-md-3">
                 <label className="form-label">Type</label>
@@ -494,7 +514,7 @@ export default function RecordsPage() {
             <div className="row mt-3">
               <div className="col-12">
                 <button
-                  className="btn btn-success"
+                  className="btn btn-primary"
                   onClick={addHSTDiscountItem}
                   disabled={addingItem || !newItem.description || !newItem.total_price || !newItem.date || !newItem.store}
                 >
@@ -599,8 +619,8 @@ export default function RecordsPage() {
               ) : (
                 <div className="d-flex gap-2">
                   <button
-                    className="btn btn-success"
                     onClick={saveChanges}
+                    className="btn btn-primary"
                     disabled={saving || Object.keys(editing).length === 0}
                     title={Object.keys(editing).length === 0 ? "Make changes to enable saving" : `Save ${Object.keys(editing).length} changed record(s)`}
                   >

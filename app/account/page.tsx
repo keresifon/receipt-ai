@@ -54,9 +54,26 @@ export default function AccountPage() {
   }
 
   const openSettingsModal = () => {
+    if (!account) return
     setAccountName(account.name || '')
     setAccountDescription(account.description || '')
     setShowSettingsModal(true)
+  }
+
+  const openInviteModal = () => {
+    setShowInviteModal(true)
+  }
+
+  const closeInviteModal = () => {
+    setShowInviteModal(false)
+    setInviteEmail('')
+    setInviteRole('member')
+  }
+
+  const closeSettingsModal = () => {
+    setShowSettingsModal(false)
+    setAccountName('')
+    setAccountDescription('')
   }
 
   const handleSaveSettings = async () => {
@@ -137,7 +154,7 @@ export default function AccountPage() {
     
     setInviting(true)
     try {
-      const response = await fetch(`/api/accounts/${account._id}/invites`, {
+      const response = await fetch(`/api/accounts/${account?._id}/invites`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -152,7 +169,7 @@ export default function AccountPage() {
         const result = await response.json()
         
         // Always show the invite link for manual sharing
-        const inviteUrl = result.inviteUrl || `${window.location.origin}/auth/signup?invite=${result.invite.token}&email=${encodeURIComponent(inviteEmail)}&account=${account._id}`
+        const inviteUrl = result.inviteUrl || `${window.location.origin}/auth/signup?invite=${result.invite.token}&email=${encodeURIComponent(inviteEmail)}&account=${account?._id}`
         
         // Show the invite link modal
         setInviteLink(inviteUrl)
@@ -200,9 +217,33 @@ export default function AccountPage() {
   }
 
   return (
-    <div className="container py-4">
+    <div className="container py-3 py-md-4">
       <div className="row">
-        <div className="col-12 col-lg-8">
+        <div className="col-12">
+          <div className="d-flex justify-content-between align-items-center mb-4">
+            <div>
+              <h1 className="h3 mb-2 text-dark">Account Management</h1>
+              <p className="text-muted mb-0">
+                Manage your family account, invite members, and update settings.
+              </p>
+            </div>
+            <div className="d-flex gap-2">
+              <button
+                className="btn btn-outline-primary"
+                onClick={openInviteModal}
+              >
+                <i className="bi bi-person-plus me-2"></i>
+                Invite Family Member
+              </button>
+              <button
+                className="btn btn-outline-primary"
+                onClick={openSettingsModal}
+              >
+                <i className="bi bi-gear me-2"></i>
+                Account Settings
+              </button>
+            </div>
+          </div>
           {/* Account Information */}
           <div className="card mb-4">
             <div className="card-header">
@@ -312,13 +353,21 @@ export default function AccountPage() {
             </div>
             <div className="card-body">
               <div className="row text-center">
-                <div className="col-6">
-                  <div className="h4 text-primary mb-0">{members.length}</div>
-                  <small className="text-muted">Members</small>
+                <div className="col-md-6">
+                  <div className="card h-100">
+                    <div className="card-body text-center">
+                      <div className="h4 text-primary mb-0">{members.length}</div>
+                      <p className="text-muted mb-0">Family Members</p>
+                    </div>
+                  </div>
                 </div>
-                <div className="col-6">
-                  <div className="h4 text-info mb-0">{invites.length}</div>
-                  <small className="text-muted">Pending Invites</small>
+                <div className="col-md-6">
+                  <div className="card h-100">
+                    <div className="card-body text-center">
+                      <div className="h4 text-info mb-0">{invites.length}</div>
+                      <p className="text-muted mb-0">Pending Invites</p>
+                    </div>
+                  </div>
                 </div>
               </div>
             </div>
@@ -402,7 +451,7 @@ export default function AccountPage() {
                 <button 
                   type="button" 
                   className="btn-close" 
-                  onClick={() => setShowInviteModal(false)}
+                  onClick={closeInviteModal}
                 ></button>
               </div>
               <div className="modal-body">
@@ -432,13 +481,13 @@ export default function AccountPage() {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => setShowInviteModal(false)}
+                  onClick={closeInviteModal}
                 >
                   Cancel
                 </button>
                 <button 
                   type="button" 
-                  className="btn btn-primary" 
+                  className="btn btn-outline-primary" 
                   onClick={handleInviteMember}
                   disabled={inviting || !inviteEmail.trim()}
                 >
@@ -470,7 +519,7 @@ export default function AccountPage() {
                 <button 
                   type="button" 
                   className="btn-close" 
-                  onClick={() => setShowSettingsModal(false)}
+                  onClick={closeSettingsModal}
                 ></button>
               </div>
               <div className="modal-body">
@@ -499,7 +548,7 @@ export default function AccountPage() {
                 <button 
                   type="button" 
                   className="btn btn-secondary" 
-                  onClick={() => setShowSettingsModal(false)}
+                  onClick={closeSettingsModal}
                 >
                   Cancel
                 </button>

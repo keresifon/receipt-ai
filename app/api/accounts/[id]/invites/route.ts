@@ -70,11 +70,34 @@ export async function POST(
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const invites = db.collection('account_invites')
     const users = db.collection('users')
+    const accounts = db.collection('accounts')
 
-    // Check if user already exists
+    // Get account information for the email
+    const account = await accounts.findOne({ _id: new ObjectId(params.id) })
+    if (!account) {
+      return NextResponse.json({ detail: 'Account not found' }, { status: 404 })
+    }
+
+    // Check if user already exists and if they're already part of this account
     const existingUser = await users.findOne({ email })
     if (existingUser) {
-      return NextResponse.json({ detail: 'User already exists' }, { status: 400 })
+      // Check if user is already a member of this account
+      const accountMembers = db.collection('account_members')
+      const existingMembership = await accountMembers.findOne({ 
+        accountId: new ObjectId(params.id), 
+        userId: existingUser._id 
+      })
+      
+      if (existingMembership) {
+        return NextResponse.json({ 
+          detail: 'User is already a member of this account' 
+        }, { status: 400 })
+      }
+      
+      // User exists but not in this account - allow invite
+      console.log('✅ Inviting existing user to join account:', email)
+    } else {
+      console.log('✅ Inviting new user to join account:', email)
     }
 
     // Check if invite already exists
@@ -86,9 +109,8 @@ export async function POST(
       return NextResponse.json({ detail: 'Invite already sent' }, { status: 400 })
     }
 
-    const accountId = new ObjectId(params.id)
     const invite = {
-      accountId,
+      accountId: new ObjectId(params.id),
       email,
       role,
       invitedBy: new ObjectId(session.user.id),
@@ -97,10 +119,20 @@ export async function POST(
       token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
     }
 
-    await invites.insertOne(invite)
+    const result = await invites.insertOne(invite)
+    const insertedInvite = { ...invite, _id: result.insertedId }
+    
+    console.log('✅ Invite created in database:', {
+      inviteId: result.insertedId.toString(),
+      email: email,
+      accountId: params.id,
+      role: role
+    })
 
     // Send email invitation
-    const inviteUrl = `${process.env.NEXTAUTH_URL || 'http://localhost:3000'}/auth/signup?invite=${invite.token}&email=${encodeURIComponent(email)}&account=${params.id}`
+    const inviteUrl = `${process.env.SITE_URL || 'https://no-wahala.net'}/auth/signup?invite=${invite.token}&email=${encodeURIComponent(email)}&account=${params.id}`
+    
+    console.log('🔗 Generated invite URL:', inviteUrl)
     
     let emailSent = false
     let emailError = null
@@ -110,15 +142,18 @@ export async function POST(
         // Use Resend if API key is configured
         const resend = new Resend(process.env.RESEND_API_KEY)
         
+        console.log('📧 Attempting to send email via Resend...')
+        console.log('🔑 Resend API Key:', process.env.RESEND_API_KEY ? 'Configured' : 'Missing')
+        
         await resend.emails.send({
-          from: 'onboarding@resend.dev',
+          from: 'hello@no-wahala.net',
           to: [email],
-          subject: `You're invited to join ${session.user.accountName || 'Receipt AI'}!`,
+          subject: `You're invited to join ${account.name || 'No-wahala.net'}!`,
           html: `
             <div style="font-family: Arial, sans-serif; max-width: 600px; margin: 0 auto;">
-              <h2 style="color: #0d6efd;">You're Invited!</h2>
+              <h2 style="color: #dc2626;">You're Invited!</h2>
               <p>Hello!</p>
-              <p>You've been invited to join <strong>${session.user.accountName || 'Receipt AI'}</strong> as a <strong>${role}</strong>.</p>
+              <p>You've been invited to join <strong>${account.name || 'No-wahala.net'}</strong> as a <strong>${role}</strong>.</p>
               <p>This family account helps manage and track expenses together.</p>
               <div style="background-color: #f8f9fa; padding: 20px; border-radius: 8px; margin: 20px 0;">
                 <h3 style="margin-top: 0;">What you can do:</h3>
@@ -130,13 +165,13 @@ export async function POST(
                 </ul>
               </div>
               <div style="text-align: center; margin: 30px 0;">
-                <a href="${inviteUrl}" style="background-color: #0d6efd; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
+                <a href="${inviteUrl}" style="background-color: #dc2626; color: white; padding: 12px 30px; text-decoration: none; border-radius: 6px; display: inline-block; font-weight: bold;">
                   Accept Invitation
                 </a>
               </div>
               <p style="color: #6c757d; font-size: 14px;">
                 If the button doesn't work, copy and paste this link into your browser:<br>
-                <a href="${inviteUrl}" style="color: #0d6efd;">${inviteUrl}</a>
+                <a href="${inviteUrl}" style="color: #dc2626;">${inviteUrl}</a>
               </p>
               <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
               <p style="color: #6c757d; font-size: 12px;">
@@ -150,9 +185,9 @@ export async function POST(
         emailSent = true
         console.log('✅ Invite email sent successfully to:', email)
         console.log('📧 Email details:', {
-          from: 'onboarding@resend.dev',
+          from: 'hello@no-wahala.net',
           to: email,
-          subject: `You're invited to join ${session.user.accountName || 'Receipt AI'}!`,
+          subject: `You're invited to join ${account.name || 'No-wahala.net'}!`,
           inviteUrl: inviteUrl
         })
       } else {
@@ -182,7 +217,7 @@ export async function POST(
       message: emailSent ? 'Invite sent successfully via email' : 'Invite created successfully (email failed, use invite link)',
       emailSent: emailSent,
       inviteUrl: inviteUrl,
-      invite: { ...invite, _id: invite._id?.toString() }
+      invite: { ...insertedInvite, _id: insertedInvite._id?.toString() }
     })
   } catch (e: any) {
     console.error('Error creating invite:', e)

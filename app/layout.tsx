@@ -3,6 +3,12 @@ import type { ReactNode } from 'react'
 import { NextAuthProvider } from './providers/NextAuthProvider'
 import { AuthProvider } from './providers/AuthProvider'
 import Navigation from './components/Navigation'
+import type { Metadata } from 'next'
+
+export const metadata: Metadata = {
+  title: 'No-wahala.net - Smart Family Receipt Management',
+  description: 'Transform your receipt management with AI-powered insights and family collaboration. Track expenses, analyze spending patterns, and manage household finances together.',
+}
 
 export default function RootLayout({ children }: { children: ReactNode }) {
   return (

@@ -70,6 +70,18 @@ export const authOptions = {
         session.user.role = token.role
       }
       return session
+    },
+    async redirect({ url, baseUrl }: any) {
+      // Get the proper base URL from environment or fallback to request origin
+      const siteUrl = process.env.NEXTAUTH_URL || process.env.SITE_URL || baseUrl
+      
+      console.log('NextAuth redirect:', { url, baseUrl, siteUrl })
+      
+      // Allows relative callback URLs
+      if (url.startsWith("/")) return `${siteUrl}${url}`
+      // Allows callback URLs on the same origin
+      else if (new URL(url).origin === siteUrl) return url
+      return siteUrl
     }
   },
   secret: process.env.NEXTAUTH_SECRET,

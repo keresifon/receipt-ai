@@ -7,7 +7,10 @@
     "start": "next start",
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
-    "create-indexes": "tsx scripts/create-indexes.ts"
+    "create-indexes": "tsx scripts/create-indexes.ts",
+    "restart": "pkill -f 'next dev' && npm run dev",
+    "env:dev": "node scripts/switch-env.js dev",
+    "env:prod": "node scripts/switch-env.js prod"
   },
   "dependencies": {
     "@google/generative-ai": "^0.21.0",

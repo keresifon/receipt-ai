@@ -118,7 +118,11 @@ export async function POST(
 
     return NextResponse.json({ 
       message: 'Member added successfully',
-      member: { ...member, _id: member._id?.toString(), userId: member.userId?.toString() }
+      member: { 
+        ...member, 
+        _id: member.accountId?.toString(), 
+        userId: member.userId?.toString() 
+      }
     })
   } catch (e: any) {
     console.error('Error adding member:', e)
