@@ -1,5 +1,6 @@
 'use client'
 import { useState, useEffect, useMemo } from 'react'
+import { formatCurrency, getCurrencySymbol } from '@/lib/currencies'
 
 type Record = {
   _id: string
@@ -39,6 +40,7 @@ export default function RecordsPage() {
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
+  const [accountCurrency, setAccountCurrency] = useState<string>('CAD')
 
   // Calculate total for current filtered records
   const totalAmount = useMemo(() => {
@@ -52,9 +54,10 @@ export default function RecordsPage() {
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [categoriesRes, monthsRes] = await Promise.all([
+        const [categoriesRes, monthsRes, accountRes] = await Promise.all([
           fetch('/api/categories'),
-          fetch('/api/months')
+          fetch('/api/months'),
+          fetch('/api/accounts/me')
         ])
         
         const categoriesData = await categoriesRes.json()
@@ -65,6 +68,11 @@ export default function RecordsPage() {
         const monthsData = await monthsRes.json()
         if (monthsRes.ok) {
           setAvailableMonths(monthsData.months || [])
+        }
+
+        const accountData = await accountRes.json()
+        if (accountRes.ok && accountData.settings?.currency) {
+          setAccountCurrency(accountData.settings.currency)
         }
       } catch (err) {
         console.error('Failed to load data:', err)
@@ -215,7 +223,7 @@ export default function RecordsPage() {
               </div>
               {records.length > 0 && date && (
                 <div className="text-success small">
-                  Total Amount: ${totalAmount.toFixed(2)}
+                  Total Amount: {formatCurrency(totalAmount, accountCurrency)}
                 </div>
               )}
             </>
@@ -474,7 +482,7 @@ export default function RecordsPage() {
                             style={{ width: '90px' }}
                           />
                         ) : (
-                          <span>{record.unit_price ? `$${Number(record.unit_price).toFixed(2)}` : '—'}</span>
+                          <span>{record.unit_price ? formatCurrency(Number(record.unit_price), accountCurrency) : '—'}</span>
                         )}
                       </td>
                       <td>
@@ -490,7 +498,7 @@ export default function RecordsPage() {
                         ) : (
                           <span className="fw-bold">
                             {record.description.toLowerCase() === 'discount' ? '-' : ''}
-                            ${Math.abs(Number(record.total_price || 0)).toFixed(2)}
+                            {formatCurrency(Math.abs(Number(record.total_price || 0)), accountCurrency)}
                           </span>
                         )}
                       </td>
@@ -568,6 +576,8 @@ export default function RecordsPage() {
           </p>
         </div>
       )}
+      
+
     </div>
   )
 }

@@ -2,6 +2,7 @@
 
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useState, useEffect } from 'react'
+import { getCurrencyList, getCurrency } from '@/lib/currencies'
 
 export default function AccountPage() {
   const { user, account, isLoading } = useAuth()
@@ -16,6 +17,7 @@ export default function AccountPage() {
   const [accountName, setAccountName] = useState('')
   const [accountDescription, setAccountDescription] = useState('')
   const [accountTimezone, setAccountTimezone] = useState('America/Toronto')
+  const [accountCurrency, setAccountCurrency] = useState('CAD')
   const [saving, setSaving] = useState(false)
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
@@ -58,6 +60,7 @@ export default function AccountPage() {
     setAccountName(account.name || '')
     setAccountDescription(account.description || '')
     setAccountTimezone(account.settings?.timezone || 'America/Toronto')
+    setAccountCurrency(account.settings?.currency || 'CAD')
     setShowSettingsModal(true)
   }
 
@@ -90,7 +93,8 @@ export default function AccountPage() {
         body: JSON.stringify({
           name: accountName,
           description: accountDescription,
-          timezone: accountTimezone
+          timezone: accountTimezone,
+          currency: accountCurrency
         })
       })
 
@@ -271,8 +275,10 @@ export default function AccountPage() {
                     <p className="mb-0">{new Date(account.createdAt).toLocaleDateString()}</p>
                   </div>
                   <div className="col-12 col-md-6">
-                    <label className="form-label fw-semibold">Currency</label>
-                    <p className="mb-0">{account.settings.currency}</p>
+                                    <label className="form-label fw-semibold">Currency</label>
+                <p className="mb-0">
+                  {getCurrency(account.settings.currency).name} ({account.settings.currency})
+                </p>
                   </div>
                 </div>
               </div>
@@ -624,6 +630,23 @@ export default function AccountPage() {
                     </small>
                   </div>
                 </div>
+                <div className="mb-3">
+                  <label className="form-label">Currency</label>
+                  <select
+                    className="form-control"
+                    value={accountCurrency}
+                    onChange={(e) => setAccountCurrency(e.target.value)}
+                  >
+                    {getCurrencyList().map(currency => (
+                      <option key={currency.code} value={currency.code}>
+                        {currency.symbol} - {currency.name} ({currency.code})
+                      </option>
+                    ))}
+                  </select>
+                  <div className="form-text">
+                    This currency will be used for all monetary displays and calculations.
+                  </div>
+                </div>
               </div>
               <div className="modal-footer">
                 <button 
@@ -719,6 +742,8 @@ export default function AccountPage() {
           </div>
         </div>
       )}
+      
+
     </div>
   )
 }

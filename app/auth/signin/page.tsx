@@ -41,7 +41,7 @@ export default function SignInPage() {
       <div className="row justify-content-center">
         <div className="col-12 col-md-6 col-lg-4">
           <div className="text-center mb-4">
-            <h1 className="h2 fw-bold">Welcome Back</h1>
+            <h1 className="h2 fw-bold mb-3">Welcome Back</h1>
             <p className="text-muted">Sign in to your Receipt AI account</p>
           </div>
 
@@ -109,6 +109,8 @@ export default function SignInPage() {
           </div>
         </div>
       </div>
+      
+
     </div>
   )
 }

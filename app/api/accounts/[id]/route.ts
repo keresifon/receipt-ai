@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ detail: 'Admin access required' }, { status: 403 })
     }
 
-    const { name, description, timezone } = await req.json()
+    const { name, description, timezone, currency } = await req.json()
 
     if (!name || name.trim() === '') {
       return NextResponse.json({ detail: 'Account name is required' }, { status: 400 })
@@ -73,6 +73,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
           name: name.trim(),
           description: description?.trim() || '',
           'settings.timezone': timezone || 'America/Toronto',
+          'settings.currency': currency || 'CAD',
           updatedAt: new Date()
         } 
       }

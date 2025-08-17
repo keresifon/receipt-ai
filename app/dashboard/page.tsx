@@ -4,6 +4,7 @@ import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
   BarChart, Bar, PieChart, Pie, Legend
 } from 'recharts'
+import { formatCurrency, getCurrencySymbol } from '@/lib/currencies'
 
 export default function DashboardPage() {
   const [data, setData] = useState<any>(null)
@@ -11,13 +12,15 @@ export default function DashboardPage() {
   const [selectedMonth, setSelectedMonth] = useState<string>('')
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [filteredData, setFilteredData] = useState<any>(null)
+  const [accountCurrency, setAccountCurrency] = useState<string>('CAD')
 
   useEffect(() => {
     (async () => {
       try {
-        const [analyticsRes, monthsRes] = await Promise.all([
+        const [analyticsRes, monthsRes, accountRes] = await Promise.all([
           fetch('/api/analytics', { cache: 'no-store' }),
-          fetch('/api/months', { cache: 'no-store' })
+          fetch('/api/months', { cache: 'no-store' }),
+          fetch('/api/accounts/me', { cache: 'no-store' })
         ])
         
         const analyticsJson = await analyticsRes.json()
@@ -27,6 +30,11 @@ export default function DashboardPage() {
         const monthsJson = await monthsRes.json()
         if (monthsRes.ok) {
           setAvailableMonths(monthsJson.months || [])
+        }
+
+        const accountJson = await accountRes.json()
+        if (accountRes.ok && accountJson.settings?.currency) {
+          setAccountCurrency(accountJson.settings.currency)
         }
       } catch (e: any) { setError(e.message) }
     })()
@@ -105,7 +113,7 @@ export default function DashboardPage() {
   return (
     <div className="container-fluid py-4">
       <div className="text-center mb-4">
-        <h1 className="display-4 fw-bold">Spending Dashboard</h1>
+        <h1 className="display-4 fw-bold mb-3">Spending Dashboard</h1>
         <p className="lead text-muted">
           Track your expenses and analyze spending patterns
           <span className="d-block small text-muted mt-1">
@@ -182,7 +190,7 @@ export default function DashboardPage() {
               </div>
               <div className="ms-3">
                 <div className="bg-success bg-opacity-10 rounded p-3">
-                  <i className="bi bi-currency-dollar text-success fs-4"></i>
+                  <span className="text-success fs-4 fw-bold">{getCurrencySymbol(accountCurrency)}</span>
                 </div>
               </div>
             </div>
@@ -331,11 +339,11 @@ export default function DashboardPage() {
               {todaysItems.length > 0 && (
                 <div className="d-flex align-items-center gap-3">
                   <div className="text-success fw-bold fs-6">
-                    <i className="bi bi-currency-dollar me-1"></i>
-                    Today's Total: ${todaysItems.reduce((sum: number, item: any) => {
+                    <span className="me-1">{getCurrencySymbol(accountCurrency)}</span>
+                    Today's Total: {formatCurrency(todaysItems.reduce((sum: number, item: any) => {
                       const amount = Number(item.total_price || 0)
                       return sum + amount
-                    }, 0).toFixed(2)}
+                    }, 0), accountCurrency)}
                   </div>
                   <div className="text-muted small">
                     <i className="bi bi-receipt me-1"></i>
@@ -372,7 +380,7 @@ export default function DashboardPage() {
                             <td>
                               <span className="fw-bold">
                                 {String(r.description).toLowerCase() === 'discount' ? '-' : ''}
-                                ${Math.abs(Number(r.total_price || 0)).toFixed(2)}
+                                {formatCurrency(Math.abs(Number(r.total_price || 0)), accountCurrency)}
                               </span>
                             </td>
                           </tr>
@@ -398,6 +406,8 @@ export default function DashboardPage() {
           </div>
         </div>
       </div>
+      
+
     </div>
   )
 }
