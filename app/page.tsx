@@ -41,7 +41,7 @@ export default function HomePage() {
         <div className="container">
           <div className="row align-items-center">
             <div className="col-lg-6">
-              <h1 className="display-4 fw-bold mb-4">
+              <h1 className="display-4 fw-bold mb-3">
                 Smart Family Receipt Management
               </h1>
               <p className="lead mb-4">

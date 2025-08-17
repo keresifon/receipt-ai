@@ -113,7 +113,7 @@ export default function DashboardPage() {
   return (
     <div className="container-fluid py-4">
       <div className="text-center mb-4">
-        <h1 className="display-4 fw-bold">Spending Dashboard</h1>
+        <h1 className="display-4 fw-bold mb-3">Spending Dashboard</h1>
         <p className="lead text-muted">
           Track your expenses and analyze spending patterns
           <span className="d-block small text-muted mt-1">

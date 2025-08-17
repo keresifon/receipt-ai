@@ -6,6 +6,28 @@ import { useSession, signOut } from 'next-auth/react'
 export default function Navigation() {
   const { data: session, status } = useSession()
 
+  // Add custom styles for hover effects
+  const navLinkStyle = {
+    transition: 'color 0.2s ease',
+    cursor: 'pointer'
+  }
+
+  const navLinkHoverStyle = {
+    color: '#17a2b8 !important'
+  }
+
+  // Custom navbar styles to override Bootstrap defaults
+  const navbarStyle = {
+    backgroundColor: '#000000 !important',
+    borderBottom: '1px solid #333',
+    color: '#ffffff'
+  }
+
+  // Additional styles to ensure proper colors
+  const navbarBrandStyle = {
+    color: '#ffffff !important'
+  }
+
   const handleSignOut = async () => {
     try {
       // Get the current origin or use a fallback
@@ -21,10 +43,20 @@ export default function Navigation() {
   }
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
+    <nav className="navbar navbar-expand-lg shadow-sm" style={navbarStyle}>
       <div className="container">
-        <a className="navbar-brand fw-bold text-white" href="/">
-          No-wahala.net
+        <a className="navbar-brand d-flex align-items-center" href="/" style={navbarBrandStyle}>
+          <img 
+            src="/no-wahala.png?v=2" 
+            alt="No-wahala.net Logo" 
+            height="40" 
+            className="me-2"
+            style={{ 
+              maxHeight: '40px', 
+              width: 'auto',
+              filter: 'drop-shadow(0 1px 2px rgba(0,0,0,0.1))'
+            }}
+          />
         </a>
         
         <button 
@@ -49,19 +81,19 @@ export default function Navigation() {
               </div>
             ) : session ? (
               <>
-                <Link href="/dashboard" className="nav-link text-light fw-semibold">
+                <Link href="/dashboard" className="nav-link text-light fw-semibold" style={navLinkStyle}>
                   <i className="bi bi-graph-up me-1"></i>
                   Dashboard
                 </Link>
-                <Link href="/upload" className="nav-link text-light fw-semibold">
+                <Link href="/upload" className="nav-link text-light fw-semibold" style={navLinkStyle}>
                   <i className="bi bi-upload me-1"></i>
                   Upload
                 </Link>
-                <Link href="/records" className="nav-link text-light fw-semibold">
+                <Link href="/records" className="nav-link text-light fw-semibold" style={navLinkStyle}>
                   <i className="bi bi-list-ul me-1"></i>
                   Records
                 </Link>
-                <Link href="/account" className="nav-link text-light fw-semibold">
+                <Link href="/account" className="nav-link text-light fw-semibold" style={navLinkStyle}>
                   <i className="bi bi-person-circle me-1"></i>
                   Account
                 </Link>

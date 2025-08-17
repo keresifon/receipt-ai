@@ -123,7 +123,7 @@ export default function SignUpPage() {
       <div className="row justify-content-center">
         <div className="col-12 col-lg-8">
           <div className="text-center mb-4">
-            <h1 className="h2 fw-bold">
+            <h1 className="h2 fw-bold mb-3">
               {isInvitation ? 'Join Family Account' : 'Create Your Account'}
             </h1>
             <p className="text-muted">
