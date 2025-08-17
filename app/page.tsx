@@ -57,17 +57,16 @@ export default function HomePage() {
                 </Link>
               </div>
             </div>
-            <div className="col-lg-6 text-center">
-              <div className="hero-image-container">
+            <div className="col-lg-6">
+              <div>
                 <img
                   src="https://images.unsplash.com/photo-1563013544-824ae1b704d3?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
                   alt="Smart receipt management with AI"
-                  className="img-fluid rounded-3 shadow-lg"
+                  className="img-fluid rounded-3"
                   style={{
-                    maxHeight: '400px',
+                    maxHeight: '320px',
                     width: 'auto',
-                    filter: 'brightness(0.9) contrast(1.1) saturate(0.8)',
-                    border: '2px solid rgba(255,255,255,0.1)'
+                    filter: 'brightness(0.9) contrast(1.1) saturate(0.8)'
                   }}
                   onError={(e) => {
                     e.currentTarget.src = "https://images.unsplash.com/photo-1554224155-6726b3ff858f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
@@ -80,7 +79,7 @@ export default function HomePage() {
       </section>
 
       {/* How It Works Section */}
-      <section className="py-5 bg-light">
+      <section className="pt-3 pb-5 bg-light">
         <div className="container">
           <div className="text-center mb-5">
             <h2 className="display-5 fw-bold text-dark mb-3">How It Works</h2>
@@ -170,7 +169,7 @@ export default function HomePage() {
         <div className="container text-center">
           <h2 className="display-5 fw-bold mb-4">Ready to Get Started?</h2>
           <p className="lead mb-4">
-            Join thousands of families who are already using No-wahala.net to manage their finances smarter.
+            Join thousands of families who are already using No-wahala to manage their finances smarter.
           </p>
           <Link href="/auth/signup" className="btn btn-light btn-lg px-5">
             Start Managing Receipts Today
