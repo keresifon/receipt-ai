@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
@@ -9,24 +9,64 @@ export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
+    // Get user session to ensure authentication and get accountId
     const session = await getServerSession(authOptions)
-    
-    if (!session?.user) {
+    if (!session?.user || !('accountId' in session.user)) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
-
+    
+    const accountId = new ObjectId(session.user.accountId as string)
+    
+    // Get month filter from query parameters
+    const { searchParams } = new URL(req.url)
+    const month = searchParams.get('month')
+    
+    // Build date filter if month is specified
+    const dateFilter = month ? { date: { $regex: `^${month}-` } } : {}
+    
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
+    
+    // Debug: Check if there are any items for this account
+    const totalItems = await items.countDocuments({ accountId: accountId })
+    const totalAllItems = await items.countDocuments({})
+    
+    console.log('Analytics API Debug:', {
+      accountId: accountId.toString(),
+      totalItemsForAccount: totalItems,
+      totalAllItems: totalAllItems,
+      hasAccountId: !!accountId
+    })
 
-    // Filter by account
-    const accountId = new ObjectId(session.user.accountId)
-    const accountFilter = { accountId: accountId }
-
-
+    // Group by receipt and calculate net totals per receipt
+    const receiptTotals = await items.aggregate([
+      { $match: { accountId: accountId, ...dateFilter } },
+      { $addFields: {
+        amount: {
+          $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
+        },
+        descLower: { $toLower: { $ifNull: ['$description', ''] } }
+      } },
+      { $addFields: {
+        itemAmount: { $cond: [ { $in: ['$descLower', ['hst', 'discount']] }, 0, '$amount' ] },
+        hstAmount: { $cond: [ { $eq: ['$descLower', 'hst'] }, '$amount', 0 ] },
+        discountAmount: { $cond: [ { $eq: ['$descLower', 'discount'] }, { $abs: '$amount' }, 0 ] }
+      } },
+      { $group: {
+        _id: { receipt_id: '$receipt_id', date: { $substr: ['$date', 0, 7] }, store: '$store', category: '$category' },
+        itemTotal: { $sum: '$itemAmount' },
+        hstTotal: { $sum: '$hstAmount' },
+        discountTotal: { $sum: '$discountAmount' },
+        date: { $first: '$date' },
+        store: { $first: '$store' },
+        category: { $first: '$category' }
+      } },
+      { $addFields: { netTotal: { $subtract: [ { $add: ['$itemTotal', '$hstTotal'] }, '$discountTotal' ] } } }
+    ]).toArray()
 
     const monthly = await items.aggregate([
-      { $match: accountFilter },
+      { $match: { accountId: accountId, ...dateFilter } },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -51,7 +91,7 @@ export async function GET(req: NextRequest) {
     ]).toArray()
 
     const byCategory = await items.aggregate([
-      { $match: { $and: [accountFilter, { description: { $not: { $regex: /^(hst|discount)$/i } } }] } },
+      { $match: { accountId: accountId, description: { $not: { $regex: /^(hst|discount)$/i } }, ...dateFilter } },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -62,38 +102,9 @@ export async function GET(req: NextRequest) {
       { $sort: { total: -1 } },
     ]).toArray()
 
-    // Group small categories into "Other" for better chart readability
-    if (byCategory.length > 0) {
-      const totalSpending = byCategory.reduce((sum, item) => sum + item.total, 0)
-      const threshold = totalSpending * 0.05 // 5% threshold
-      
-      const mainCategories = []
-      let otherTotal = 0
-      let otherCount = 0
-      
-      byCategory.forEach(item => {
-        if (item.total >= threshold) {
-          mainCategories.push(item)
-        } else {
-          otherTotal += item.total
-          otherCount++
-        }
-      })
-      
-      // Add "Other" category if there are small categories
-      if (otherCount > 0) {
-        mainCategories.push({
-          category: `Other (${otherCount} categories)`,
-          total: otherTotal
-        })
-      }
-      
-      byCategory.length = 0
-      byCategory.push(...mainCategories)
-    }
-
-    const byStore = await items.aggregate([
-      { $match: accountFilter },
+    // Get store totals first
+    const storeTotals = await items.aggregate([
+      { $match: { accountId: accountId, ...dateFilter } },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -117,8 +128,34 @@ export async function GET(req: NextRequest) {
       { $sort: { total: -1 } },
     ]).toArray()
 
+    // Calculate total spending for percentage calculation
+    const totalSpending = storeTotals.reduce((sum, store) => sum + store.total, 0)
+    
+                // Bundle stores under 5% into "Other Stores"
+            const byStore = storeTotals.reduce((acc: any[], store) => {
+              const percentage = (store.total / totalSpending) * 100
+              
+              if (percentage >= 5) {
+                // Keep individual stores that are 5% or more
+                acc.push(store)
+              } else {
+                // Bundle stores under 5% into "Other Stores"
+                const otherStore = acc.find((s: any) => s.store === 'Other Stores')
+                if (otherStore) {
+                  otherStore.total += store.total
+                } else {
+                  acc.push({ store: 'Other Stores', total: store.total })
+                }
+              }
+              
+              return acc
+            }, [] as any[])
+    
+    // Sort by total (descending)
+    byStore.sort((a, b) => b.total - a.total)
+
     const recent = await items.aggregate([
-      { $match: accountFilter },
+      { $match: { accountId: accountId, ...dateFilter } },
       { $sort: { date: -1, _id: -1 } },
       { $limit: 25 },
       { $project: {
@@ -133,7 +170,7 @@ export async function GET(req: NextRequest) {
     ]).toArray()
 
     const totalsAgg = await items.aggregate([
-      { $match: accountFilter },
+      { $match: { accountId: accountId, ...dateFilter } },
       { $addFields: {
         amount: {
           $cond: [ { $or: [ { $eq: ['$total_price', ''] }, { $eq: ['$total_price', null] } ] }, 0, { $toDouble: '$total_price' } ]
@@ -157,15 +194,6 @@ export async function GET(req: NextRequest) {
     ]).toArray()
 
     const totals = totalsAgg[0] || { total: 0, count: 0 }
-
-    console.log('Analytics API Debug:', {
-      accountId: session.user.accountId,
-      monthlyData: monthly.length,
-      byCategory: byCategory.length,
-      byStore: byStore.length,
-      recent: recent.length,
-      totals: totals
-    })
 
     return NextResponse.json({ monthly, byCategory, byStore, recent, totals })
   } catch (e: any) {

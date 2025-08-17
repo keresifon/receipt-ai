@@ -12,8 +12,6 @@ export default function Navigation() {
       const currentOrigin = typeof window !== 'undefined' ? window.location.origin : ''
       const callbackUrl = currentOrigin || '/'
       
-      console.log('Signing out with callback URL:', callbackUrl)
-      
       await signOut({ callbackUrl })
     } catch (error) {
       console.error('Sign out error:', error)
@@ -30,7 +28,7 @@ export default function Navigation() {
         </a>
         
         <button 
-          className="navbar-toggler" 
+          className="navbar navbar-toggler" 
           type="button" 
           data-bs-toggle="collapse" 
           data-bs-target="#navbarNav"

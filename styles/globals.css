@@ -1,4 +1,4 @@
-@import 'bootstrap/dist/css/bootstrap.min.css';
+/* Bootstrap CSS will be loaded via CDN in layout.tsx */
 
 /* Custom Color Theme - Black & Grey */
 :root {

@@ -2,7 +2,7 @@
 import { useEffect, useState, useMemo } from 'react'
 import {
   LineChart, Line, XAxis, YAxis, Tooltip, CartesianGrid, ResponsiveContainer,
-  BarChart, Bar, PieChart, Pie, Legend, Cell
+  BarChart, Bar, PieChart, Pie, Legend
 } from 'recharts'
 
 export default function DashboardPage() {
@@ -34,14 +34,15 @@ export default function DashboardPage() {
 
   // Load filtered data when month changes
   useEffect(() => {
-    if (!selectedMonth) {
+    if (!selectedMonth || !data) {
       setFilteredData(data)
       return
     }
 
     const loadFilteredData = async () => {
       try {
-        const res = await fetch(`/api/analytics-filtered?month=${selectedMonth}`, { cache: 'no-store' })
+        // Make a new API call to get month-specific analytics
+        const res = await fetch(`/api/analytics?month=${selectedMonth}`, { cache: 'no-store' })
         const json = await res.json()
         if (!res.ok) throw new Error(json?.detail || 'Failed to load filtered analytics')
         setFilteredData(json)
@@ -63,38 +64,48 @@ export default function DashboardPage() {
     return `${year}-${month}-${day}`
   }, [])
 
-  const [recent, setRecent] = useState<any[]>([])
+  const [todaysItems, setTodaysItems] = useState<any[]>([])
 
   useEffect(() => {
     const currentData = filteredData || data
-    console.log('useEffect triggered - today:', today)
     
     if (!currentData?.recent) {
-      setRecent([])
+      setTodaysItems([])
       return
     }
     
     // Filter to show only today's items
     const todaysItems = currentData.recent.filter((item: any) => item.date === today)
-    console.log('Today\'s items found:', todaysItems.length)
-    setRecent(todaysItems.slice(0, 20))
-  }, [filteredData, data])
+    setTodaysItems(todaysItems.slice(0, 20))
+  }, [filteredData, data, today])
 
   if (error) return <main className="p-6">Error: {error}</main>
   if (!data) return <main className="p-6">Loading…</main>
+  
+  // Debug: Show data structure
+  if (data && Object.keys(data).length === 0) {
+    return <main className="p-6">Debug: Data is empty object</main>
+  }
 
   const currentData = filteredData || data
-  const { monthly, byCategory, byStore, totals } = currentData
   
-  // Debug logging
-  console.log('Dashboard data loaded:', !!currentData)
-  console.log('Recent items available:', currentData?.recent?.length || 0)
-  console.log('Today variable:', today)
+  // Ensure we have the expected data structure
+  if (!currentData || typeof currentData !== 'object') {
+    return <main className="p-6">Debug: Invalid data structure: {JSON.stringify(currentData)}</main>
+  }
+  
+  const { monthly = [], byCategory = [], byStore = [], totals = {} } = currentData
+  
+
+  
+
+  
+
 
   return (
-    <div className="container-fluid py-3 py-md-4">
+    <div className="container-fluid py-4">
       <div className="text-center mb-4">
-        <h1 className="h2 h1-md fw-bold">Spending Dashboard</h1>
+        <h1 className="display-4 fw-bold">Spending Dashboard</h1>
         <p className="lead text-muted">
           Track your expenses and analyze spending patterns
           <span className="d-block small text-muted mt-1">
@@ -115,223 +126,220 @@ export default function DashboardPage() {
 
 
 
-      <div className="row g-3 g-md-4 mb-4">
-        {/* Total Spend Card */}
-        <div className="col-md-6 col-lg-3 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
-            <div className="card-body d-flex align-items-center">
-              <div className="bg-primary bg-opacity-10 rounded-circle p-3 me-3">
-                <i className="bi bi-currency-dollar text-primary fs-3"></i>
+      <div className="row g-4 mb-4">
+        {/* Month Filter Card */}
+        <div className="col-md-3">
+          <div className="card h-100">
+            <div className="card-body">
+              <div className="text-muted small text-uppercase fw-semibold mb-3">
+                <i className="bi bi-calendar3 me-2"></i>
+                Filter by Month
               </div>
-              <div>
-                <h6 className="card-title text-muted mb-1">Total Spend</h6>
-                <h4 className="mb-0 text-primary">${totals.total?.toFixed(2) || '0.00'}</h4>
+              <select
+                value={selectedMonth}
+                onChange={e => setSelectedMonth(e.target.value)}
+                className="form-select mb-2"
+              >
+                <option value="">All Months</option>
+                {availableMonths.map(month => (
+                  <option key={month} value={month}>
+                    {new Date(month + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                  </option>
+                ))}
+              </select>
+              {selectedMonth && (
+                <div className="d-flex justify-content-between align-items-center">
+                  <small className="text-muted">
+                    Filtering: {new Date(selectedMonth + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </small>
+                  <button
+                    onClick={() => setSelectedMonth('')}
+                    className="btn btn-outline-secondary btn-sm"
+                    title="Clear filter"
+                  >
+                    <i className="bi bi-x-lg"></i>
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+
+        {/* Total Spend Card */}
+        <div className="col-md-3">
+          <div className="card h-100">
+            <div className="card-body d-flex align-items-center">
+              <div className="flex-grow-1">
+                <div className="text-muted small text-uppercase fw-semibold">
+                  {selectedMonth ? 'Month' : 'Total'} Spend
+                </div>
+                <div className="h3 fw-bold text-success mb-0">${totals.total?.toFixed(2) || '0.00'}</div>
+                {selectedMonth && (
+                  <small className="text-muted">
+                    for {new Date(selectedMonth + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </small>
+                )}
+              </div>
+              <div className="ms-3">
+                <div className="bg-success bg-opacity-10 rounded p-3">
+                  <i className="bi bi-currency-dollar text-success fs-4"></i>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Total Items Card */}
-        <div className="col-md-6 col-lg-3 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
+        <div className="col-md-3">
+          <div className="card h-100">
             <div className="card-body d-flex align-items-center">
-              <div className="bg-accent bg-opacity-10 rounded-circle p-3 me-3">
-                <i className="bi bi-receipt text-accent fs-3"></i>
+              <div className="flex-grow-1">
+                <div className="text-muted small text-uppercase fw-semibold">
+                  {selectedMonth ? 'Month' : 'Total'} Items
+                </div>
+                <div className="h3 fw-bold text-primary mb-0">{totals.count || 0}</div>
+                {selectedMonth && (
+                  <small className="text-muted">
+                    for {new Date(selectedMonth + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </small>
+                )}
               </div>
-              <div>
-                <h6 className="card-title text-muted mb-1">Total Items</h6>
-                <h4 className="mb-0 text-accent">{totals.count || 0}</h4>
+              <div className="ms-3">
+                <div className="bg-primary bg-opacity-10 rounded p-3">
+                  <i className="bi bi-receipt text-primary fs-4"></i>
+                </div>
               </div>
             </div>
           </div>
         </div>
 
         {/* Distinct Stores Card */}
-        <div className="col-md-6 col-lg-3 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
+        <div className="col-md-3">
+          <div className="card h-100">
             <div className="card-body d-flex align-items-center">
-              <div className="bg-secondary bg-opacity-10 rounded-circle p-3 me-3">
-                <i className="bi bi-shop text-secondary fs-3"></i>
+              <div className="flex-grow-1">
+                <div className="text-muted small text-uppercase fw-semibold">
+                  {selectedMonth ? 'Month' : 'Total'} Stores
+                </div>
+                <div className="h3 fw-bold text-info mb-0">{new Set((byStore || []).map((s: any) => s.store)).size}</div>
+                {selectedMonth && (
+                  <small className="text-muted">
+                    for {new Date(selectedMonth + '-15').toLocaleDateString('en-US', { month: 'short', year: 'numeric' })}
+                  </small>
+                )}
               </div>
-              <div>
-                <h6 className="card-title text-muted mb-1">Distinct Stores</h6>
-                <h4 className="mb-0 text-secondary">{new Set((byStore || []).map((s: any) => s.store)).size}</h4>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Month Filter Card */}
-        <div className="col-md-6 col-lg-3 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
-            <div className="card-body d-flex align-items-center">
-              <div className="bg-secondary bg-opacity-10 rounded-circle p-3 me-3">
-                <i className="bi bi-calendar-event text-secondary fs-3"></i>
-              </div>
-              <div>
-                <h6 className="card-title text-muted mb-1">Month Filter</h6>
-                <select 
-                  className="form-select form-select-sm" 
-                  value={selectedMonth} 
-                  onChange={(e) => setSelectedMonth(e.target.value)}
-                >
-                  <option value="all">All Months</option>
-                  {availableMonths.map((month) => (
-                    <option key={month} value={month}>
-                      {new Date(month + '-15').toLocaleDateString('en-US', { month: 'short' })}
-                    </option>
-                  ))}
-                </select>
+              <div className="ms-3">
+                <div className="bg-info bg-opacity-10 rounded p-3">
+                  <i className="bi bi-shop text-info fs-4"></i>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </div>
 
-      <div className="row g-3 g-md-4 mb-4">
-        {/* Monthly Spend Chart */}
-        <div className="col-12 col-lg-8 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
-            <div className="card-header bg-primary text-white">
-              <h5 className="mb-0">
-                <i className="bi bi-graph-up me-2"></i>
-                Monthly Spend
+      <div className="row g-4 mb-4">
+        <div className="col-lg-6">
+          <div className="card h-100">
+            <div className="card-header">
+              <h5 className="card-title mb-0">
+                {selectedMonth ? 'Month Breakdown' : 'Monthly Spend'}
               </h5>
             </div>
             <div className="card-body">
-              {monthly && monthly.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+              <div style={{ height: '300px' }}>
+                <ResponsiveContainer width="100%" height="100%">
                   <LineChart data={monthly}>
                     <CartesianGrid strokeDasharray="3 3" />
                     <XAxis dataKey="month" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                    <Line type="monotone" dataKey="total" stroke="#1f2937" strokeWidth={2} />
+                    <Tooltip />
+                    <Line type="monotone" dataKey="total" stroke="#0d6efd" strokeWidth={3} dot={{ fill: '#0d6efd', strokeWidth: 2, r: 4 }} />
                   </LineChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-graph-up fs-1"></i>
-                  <p className="mt-3">No spending data available</p>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Spending by Category */}
-        <div className="col-12 col-lg-4 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
-            <div className="card-header bg-dark text-white">
-              <h5 className="mb-0">
-                <i className="bi bi-tags me-2"></i>
-                By Category
+        <div className="col-lg-6">
+          <div className="card h-100">
+            <div className="card-header">
+              <h5 className="card-title mb-0">
+                {selectedMonth ? 'Stores This Month' : 'By Store'}
               </h5>
             </div>
             <div className="card-body">
-              {byCategory && byCategory.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
+              <div style={{ height: '300px' }}>
+                <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie
-                      data={byCategory}
-                      dataKey="total"
-                      nameKey="category"
-                      cx="50%"
-                      cy="50%"
-                      outerRadius={80}
+                    <Pie 
+                      data={byStore} 
+                      dataKey="total" 
+                      nameKey="store" 
+                      outerRadius={80} 
                       fill="#8884d8"
-                      label={({ category, total }: any) => {
-                        // Handle long category names and "Other" category
-                        if (category.includes('Other')) {
-                          return `Other: $${total.toFixed(0)}`
-                        }
-                        // Truncate long category names
-                        const shortName = category.length > 15 ? category.substring(0, 12) + '...' : category
-                        return `${shortName}: $${total.toFixed(0)}`
-                      }}
-                    >
-                      {byCategory.map((entry: any, index: number) => {
-                        // Use special color for "Other" category
-                        const isOther = entry.category.includes('Other')
-                        const colors = ['#1f2937', '#6b7280', '#9ca3af', '#d1d5db', '#e5e7eb']
-                        const color = isOther ? '#374151' : colors[index % colors.length]
-                        
-                        return (
-                          <Cell key={`cell-${index}`} fill={color} />
-                        )
-                      })}
-                    </Pie>
-                    <Tooltip 
-                      formatter={(value) => [`$${value}`, 'Amount']}
-                      labelFormatter={(label) => {
-                        // Show full category name in tooltip
-                        return label
-                      }}
+                      label={({ name, percent }: any) => `${name} ${(percent * 100).toFixed(0)}%`}
                     />
+                    <Tooltip />
                   </PieChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-tags fs-1"></i>
-                  <p className="mt-3">No category data available</p>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        {/* Spending by Store */}
-        <div className="col-12 col-lg-6 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
-            <div className="card-header bg-dark text-white">
-              <h5 className="mb-0">
-                <i className="bi bi-shop me-2"></i>
-                By Store
+      <div className="row g-4 mb-4">
+        <div className="col-lg-6">
+          <div className="card h-100">
+            <div className="card-header">
+              <h5 className="card-title mb-0">
+                {selectedMonth ? 'Categories This Month' : 'By Category'}
               </h5>
             </div>
             <div className="card-body">
-              {byStore && byStore.length > 0 ? (
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={byStore}>
+              <div style={{ height: '400px' }}>
+                <ResponsiveContainer width="100%" height="100%">
+                  <BarChart data={byCategory}>
                     <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="store" />
+                    <XAxis dataKey="category" />
                     <YAxis />
-                    <Tooltip formatter={(value) => [`$${value}`, 'Amount']} />
-                    <Bar dataKey="total" fill="#1f2937" />
+                    <Tooltip />
+                    <Bar dataKey="total" fill="#198754" />
                   </BarChart>
                 </ResponsiveContainer>
-              ) : (
-                <div className="text-center text-muted py-5">
-                  <i className="bi bi-shop fs-1"></i>
-                  <p className="mt-3">No store data available</p>
-                </div>
-              )}
+              </div>
             </div>
           </div>
         </div>
 
-        {/* Today's Purchases */}
-        <div className="col-12 col-lg-6 mb-4">
-          <div className="card h-100 border-0 shadow-sm">
-            <div className="card-header bg-dark text-white">
-              <h5 className="mb-0">
-                <i className="bi bi-calendar-day me-2"></i>
-                Today's Purchases
-              </h5>
-              {recent.length > 0 && (
-                <div className="mt-2">
-                  <div className="d-flex align-items-center gap-3">
-                    <div className="text-white fw-bold fs-6">
-                      <i className="bi bi-currency-dollar me-1"></i>
-                      Today's Total: ${recent.reduce((sum: number, item: any) => {
-                        const amount = Number(item.total_price || 0)
-                        return sum + amount
-                      }, 0).toFixed(2)}
-                    </div>
-                    <div className="text-white-50 small">
-                      <i className="bi bi-receipt me-1"></i>
-                      {recent.length} item{recent.length !== 1 ? 's' : ''} purchased today
-                    </div>
+        <div className="col-lg-6">
+          <div className="card">
+            <div className="card-header">
+              <div className="d-flex justify-content-between align-items-start mb-2">
+                <h5 className="card-title mb-0">
+                  Today's Purchases
+                </h5>
+                <div className="d-flex gap-2">
+                  <a href="/records" className="btn btn-primary btn-sm">
+                    <i className="bi bi-pencil-square me-2"></i>
+                    Manage All Records
+                  </a>
+                </div>
+              </div>
+              {todaysItems.length > 0 && (
+                <div className="d-flex align-items-center gap-3">
+                  <div className="text-success fw-bold fs-6">
+                    <i className="bi bi-currency-dollar me-1"></i>
+                    Today's Total: ${todaysItems.reduce((sum: number, item: any) => {
+                      const amount = Number(item.total_price || 0)
+                      return sum + amount
+                    }, 0).toFixed(2)}
+                  </div>
+                  <div className="text-muted small">
+                    <i className="bi bi-receipt me-1"></i>
+                    {todaysItems.length} item{todaysItems.length !== 1 ? 's' : ''} purchased today
                   </div>
                 </div>
               )}
@@ -349,29 +357,22 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recent.length > 0 ? (
-                      recent.map((r: any) => {
+                    {todaysItems.length > 0 ? (
+                      todaysItems.map((r: any) => {
                         const isSpecialItem = ['hst', 'discount'].includes(String(r.description).toLowerCase())
                         return (
                           <tr key={r._id} className={isSpecialItem ? 'table-info' : ''}>
-                            <td className="text-muted small">
-                              {r.date ? new Date(r.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) : '—'}
-                            </td>
-                            <td className="text-muted small">
-                              {r.store || '—'}
-                            </td>
+                            <td>{r.date}</td>
+                            <td>{r.store}</td>
                             <td>
-                              <div className="d-flex align-items-center">
-                                <span className="fw-semibold">{r.description}</span>
-                                {isSpecialItem && <span className="badge bg-primary ms-2">{r.description}</span>}
-                              </div>
+                              {r.description}
+                              {isSpecialItem && <span className="badge bg-primary ms-2">{r.description}</span>}
                             </td>
-                            <td className="text-center">
-                              <span className="badge bg-secondary">{r.category || '—'}</span>
-                            </td>
-                            <td className="text-end">
-                              <span className={`fw-semibold ${r.category === 'Discount' ? 'text-success' : ''}`}>
-                                ${r.total_price?.toFixed(2) || '0.00'}
+                            <td>{r.category || '—'}</td>
+                            <td>
+                              <span className="fw-bold">
+                                {String(r.description).toLowerCase() === 'discount' ? '-' : ''}
+                                ${Math.abs(Number(r.total_price || 0)).toFixed(2)}
                               </span>
                             </td>
                           </tr>
@@ -381,7 +382,12 @@ export default function DashboardPage() {
                       <tr>
                         <td colSpan={5} className="text-center text-muted py-4">
                           <i className="bi bi-calendar-x fs-4 d-block mb-2"></i>
-                          No purchases recorded for today
+                          No purchases recorded for today ({today})
+                          {selectedMonth && (
+                            <div className="small">
+                              in {new Date(selectedMonth + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}
+                            </div>
+                          )}
                         </td>
                       </tr>
                     )}
