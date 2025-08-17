@@ -30,7 +30,17 @@ export default function RootLayout({ children }: { children: ReactNode }) {
         <NextAuthProvider>
           <AuthProvider>
             <Navigation />
-            {children}
+            <div className="min-vh-100 d-flex flex-column">
+              {children}
+              {/* Footer */}
+              <footer className="bg-dark text-white py-4 mt-auto w-100">
+                <div className="container text-center">
+                  <p className="mb-0">
+                    © 2025 No-wahala.net. All rights reserved.
+                  </p>
+                </div>
+              </footer>
+            </div>
           </AuthProvider>
         </NextAuthProvider>
         

@@ -177,14 +177,7 @@ export default function HomePage() {
         </div>
       </section>
 
-      {/* Footer */}
-      <footer className="bg-dark text-white py-4 mt-auto">
-        <div className="container text-center">
-          <p className="mb-0">
-            © 2025 No-wahala.net. All rights reserved.
-          </p>
-        </div>
-      </footer>
+
     </div>
   )
 }
