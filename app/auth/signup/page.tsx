@@ -229,7 +229,7 @@ export default function SignUpPage() {
                           value={formData.accountName}
                           onChange={handleChange}
                           required
-                          placeholder="e.g., Ekpenyong Family"
+                          placeholder="e.g., XYZ Family"
                         />
                       </div>
 

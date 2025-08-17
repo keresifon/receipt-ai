@@ -6,19 +6,29 @@ import { useSession, signOut } from 'next-auth/react'
 export default function Navigation() {
   const { data: session, status } = useSession()
 
-  const handleSignOut = () => {
-    signOut({ callbackUrl: '/' })
+  const handleSignOut = async () => {
+    try {
+      // Get the current origin or use a fallback
+      const currentOrigin = typeof window !== 'undefined' ? window.location.origin : ''
+      const callbackUrl = currentOrigin || '/'
+      
+      await signOut({ callbackUrl })
+    } catch (error) {
+      console.error('Sign out error:', error)
+      // Fallback: redirect to home page
+      window.location.href = '/'
+    }
   }
 
   return (
-    <nav className="navbar navbar-expand-lg navbar-light bg-white shadow-sm">
+    <nav className="navbar navbar-expand-lg navbar-dark bg-dark shadow-sm">
       <div className="container">
-        <Link href="/" className="navbar-brand">
-          Receipt AI
-        </Link>
+        <a className="navbar-brand fw-bold text-white" href="/">
+          No-wahala.net
+        </a>
         
         <button 
-          className="navbar-toggler" 
+          className="navbar navbar-toggler" 
           type="button" 
           data-bs-toggle="collapse" 
           data-bs-target="#navbarNav"
@@ -39,39 +49,38 @@ export default function Navigation() {
               </div>
             ) : session ? (
               <>
-                <Link href="/dashboard" className="nav-link">
-                  <i className="bi bi-graph-up me-1 d-none d-sm-inline"></i>
+                <Link href="/dashboard" className="nav-link text-light fw-semibold">
+                  <i className="bi bi-graph-up me-1"></i>
                   Dashboard
                 </Link>
-                <Link href="/upload" className="nav-link">
-                  <i className="bi bi-upload me-1 d-none d-sm-inline"></i>
+                <Link href="/upload" className="nav-link text-light fw-semibold">
+                  <i className="bi bi-upload me-1"></i>
                   Upload
                 </Link>
-                <Link href="/records" className="nav-link">
-                  <i className="bi bi-list-ul me-1 d-none d-sm-inline"></i>
+                <Link href="/records" className="nav-link text-light fw-semibold">
+                  <i className="bi bi-list-ul me-1"></i>
                   Records
                 </Link>
-                <Link href="/account" className="nav-link">
-                  <i className="bi bi-person-circle me-1 d-none d-sm-inline"></i>
+                <Link href="/account" className="nav-link text-light fw-semibold">
+                  <i className="bi bi-person-circle me-1"></i>
                   Account
                 </Link>
-                <button 
+                <button
                   onClick={handleSignOut}
-                  className="nav-link btn btn-link p-0 border-0"
-                  style={{ background: 'none', textDecoration: 'none' }}
+                  className="btn btn-outline-light btn-sm ms-2"
                 >
-                  <i className="bi bi-box-arrow-right me-1 d-none d-sm-inline"></i>
+                  <i className="bi bi-box-arrow-right me-1"></i>
                   Sign Out
                 </button>
               </>
             ) : (
               <>
-                <Link href="/auth/signin" className="nav-link">
-                  <i className="bi bi-box-arrow-in-right me-1 d-none d-sm-inline"></i>
+                <Link href="/auth/signin" className="btn btn-outline-light btn-sm me-2">
+                  <i className="bi bi-box-arrow-in-right me-1"></i>
                   Sign In
                 </Link>
-                <Link href="/auth/signup" className="nav-link">
-                  <i className="bi bi-person-plus me-1 d-none d-sm-inline"></i>
+                <Link href="/auth/signup" className="btn btn-primary btn-sm">
+                  <i className="bi bi-person-plus me-1"></i>
                   Sign Up
                 </Link>
               </>

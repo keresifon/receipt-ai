@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
@@ -118,7 +118,11 @@ export async function POST(
 
     return NextResponse.json({ 
       message: 'Member added successfully',
-      member: { ...member, _id: member._id?.toString(), userId: member.userId?.toString() }
+      member: { 
+        ...member, 
+        _id: member.accountId?.toString(), 
+        userId: member.userId?.toString() 
+      }
     })
   } catch (e: any) {
     console.error('Error adding member:', e)

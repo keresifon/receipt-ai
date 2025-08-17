@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { getServerSession } from 'next-auth'
-import { authOptions } from '@/app/api/auth/[...nextauth]/route'
+import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 
@@ -56,7 +56,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
       return NextResponse.json({ detail: 'Admin access required' }, { status: 403 })
     }
 
-    const { name, description } = await req.json()
+    const { name, description, timezone } = await req.json()
 
     if (!name || name.trim() === '') {
       return NextResponse.json({ detail: 'Account name is required' }, { status: 400 })
@@ -72,6 +72,7 @@ export async function PUT(req: NextRequest, { params }: { params: { id: string }
         $set: { 
           name: name.trim(),
           description: description?.trim() || '',
+          'settings.timezone': timezone || 'America/Toronto',
           updatedAt: new Date()
         } 
       }

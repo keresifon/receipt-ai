@@ -34,14 +34,15 @@ export default function DashboardPage() {
 
   // Load filtered data when month changes
   useEffect(() => {
-    if (!selectedMonth) {
+    if (!selectedMonth || !data) {
       setFilteredData(data)
       return
     }
 
     const loadFilteredData = async () => {
       try {
-        const res = await fetch(`/api/analytics-filtered?month=${selectedMonth}`, { cache: 'no-store' })
+        // Make a new API call to get month-specific analytics
+        const res = await fetch(`/api/analytics?month=${selectedMonth}`, { cache: 'no-store' })
         const json = await res.json()
         if (!res.ok) throw new Error(json?.detail || 'Failed to load filtered analytics')
         setFilteredData(json)
@@ -63,38 +64,48 @@ export default function DashboardPage() {
     return `${year}-${month}-${day}`
   }, [])
 
-  const [recent, setRecent] = useState<any[]>([])
+  const [todaysItems, setTodaysItems] = useState<any[]>([])
 
   useEffect(() => {
     const currentData = filteredData || data
-    console.log('useEffect triggered - today:', today)
     
     if (!currentData?.recent) {
-      setRecent([])
+      setTodaysItems([])
       return
     }
     
     // Filter to show only today's items
     const todaysItems = currentData.recent.filter((item: any) => item.date === today)
-    console.log('Today\'s items found:', todaysItems.length)
-    setRecent(todaysItems.slice(0, 20))
-  }, [filteredData, data])
+    setTodaysItems(todaysItems.slice(0, 20))
+  }, [filteredData, data, today])
 
   if (error) return <main className="p-6">Error: {error}</main>
   if (!data) return <main className="p-6">Loading…</main>
+  
+  // Debug: Show data structure
+  if (data && Object.keys(data).length === 0) {
+    return <main className="p-6">Debug: Data is empty object</main>
+  }
 
   const currentData = filteredData || data
-  const { monthly, byCategory, byStore, totals } = currentData
   
-  // Debug logging
-  console.log('Dashboard data loaded:', !!currentData)
-  console.log('Recent items available:', currentData?.recent?.length || 0)
-  console.log('Today variable:', today)
+  // Ensure we have the expected data structure
+  if (!currentData || typeof currentData !== 'object') {
+    return <main className="p-6">Debug: Invalid data structure: {JSON.stringify(currentData)}</main>
+  }
+  
+  const { monthly = [], byCategory = [], byStore = [], totals = {} } = currentData
+  
+
+  
+
+  
+
 
   return (
-    <div className="container-fluid py-3 py-md-4">
+    <div className="container-fluid py-4">
       <div className="text-center mb-4">
-        <h1 className="h2 h1-md fw-bold">Spending Dashboard</h1>
+        <h1 className="display-4 fw-bold">Spending Dashboard</h1>
         <p className="lead text-muted">
           Track your expenses and analyze spending patterns
           <span className="d-block small text-muted mt-1">
@@ -115,9 +126,9 @@ export default function DashboardPage() {
 
 
 
-      <div className="row g-3 g-md-4 mb-4">
+      <div className="row g-4 mb-4">
         {/* Month Filter Card */}
-        <div className="col-12 col-sm-6 col-md-3">
+        <div className="col-md-3">
           <div className="card h-100">
             <div className="card-body">
               <div className="text-muted small text-uppercase fw-semibold mb-3">
@@ -155,7 +166,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Spend Card */}
-        <div className="col-12 col-sm-6 col-md-3">
+        <div className="col-md-3">
           <div className="card h-100">
             <div className="card-body d-flex align-items-center">
               <div className="flex-grow-1">
@@ -169,7 +180,7 @@ export default function DashboardPage() {
                   </small>
                 )}
               </div>
-              <div className="ms-3 d-none d-md-block">
+              <div className="ms-3">
                 <div className="bg-success bg-opacity-10 rounded p-3">
                   <i className="bi bi-currency-dollar text-success fs-4"></i>
                 </div>
@@ -179,7 +190,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Total Items Card */}
-        <div className="col-12 col-sm-6 col-md-3">
+        <div className="col-md-3">
           <div className="card h-100">
             <div className="card-body d-flex align-items-center">
               <div className="flex-grow-1">
@@ -193,7 +204,7 @@ export default function DashboardPage() {
                   </small>
                 )}
               </div>
-              <div className="ms-3 d-none d-md-block">
+              <div className="ms-3">
                 <div className="bg-primary bg-opacity-10 rounded p-3">
                   <i className="bi bi-receipt text-primary fs-4"></i>
                 </div>
@@ -203,7 +214,7 @@ export default function DashboardPage() {
         </div>
 
         {/* Distinct Stores Card */}
-        <div className="col-12 col-sm-6 col-md-3">
+        <div className="col-md-3">
           <div className="card h-100">
             <div className="card-body d-flex align-items-center">
               <div className="flex-grow-1">
@@ -217,7 +228,7 @@ export default function DashboardPage() {
                   </small>
                 )}
               </div>
-              <div className="ms-3 d-none d-md-block">
+              <div className="ms-3">
                 <div className="bg-info bg-opacity-10 rounded p-3">
                   <i className="bi bi-shop text-info fs-4"></i>
                 </div>
@@ -227,8 +238,8 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="row g-3 g-md-4 mb-4">
-        <div className="col-12 col-lg-6">
+      <div className="row g-4 mb-4">
+        <div className="col-lg-6">
           <div className="card h-100">
             <div className="card-header">
               <h5 className="card-title mb-0">
@@ -251,7 +262,7 @@ export default function DashboardPage() {
           </div>
         </div>
 
-        <div className="col-12 col-lg-6">
+        <div className="col-lg-6">
           <div className="card h-100">
             <div className="card-header">
               <h5 className="card-title mb-0">
@@ -279,9 +290,9 @@ export default function DashboardPage() {
         </div>
       </div>
 
-      <div className="row g-3 g-md-4 mb-4">
-        <div className="col-12">
-          <div className="card">
+      <div className="row g-4 mb-4">
+        <div className="col-lg-6">
+          <div className="card h-100">
             <div className="card-header">
               <h5 className="card-title mb-0">
                 {selectedMonth ? 'Categories This Month' : 'By Category'}
@@ -302,10 +313,8 @@ export default function DashboardPage() {
             </div>
           </div>
         </div>
-      </div>
 
-      <div className="row">
-        <div className="col-12">
+        <div className="col-lg-6">
           <div className="card">
             <div className="card-header">
               <div className="d-flex justify-content-between align-items-start mb-2">
@@ -319,18 +328,18 @@ export default function DashboardPage() {
                   </a>
                 </div>
               </div>
-              {recent.length > 0 && (
+              {todaysItems.length > 0 && (
                 <div className="d-flex align-items-center gap-3">
                   <div className="text-success fw-bold fs-6">
                     <i className="bi bi-currency-dollar me-1"></i>
-                    Today's Total: ${recent.reduce((sum: number, item: any) => {
+                    Today's Total: ${todaysItems.reduce((sum: number, item: any) => {
                       const amount = Number(item.total_price || 0)
                       return sum + amount
                     }, 0).toFixed(2)}
                   </div>
                   <div className="text-muted small">
                     <i className="bi bi-receipt me-1"></i>
-                    {recent.length} item{recent.length !== 1 ? 's' : ''} purchased today
+                    {todaysItems.length} item{todaysItems.length !== 1 ? 's' : ''} purchased today
                   </div>
                 </div>
               )}
@@ -348,8 +357,8 @@ export default function DashboardPage() {
                     </tr>
                   </thead>
                   <tbody>
-                    {recent.length > 0 ? (
-                      recent.map((r: any) => {
+                    {todaysItems.length > 0 ? (
+                      todaysItems.map((r: any) => {
                         const isSpecialItem = ['hst', 'discount'].includes(String(r.description).toLowerCase())
                         return (
                           <tr key={r._id} className={isSpecialItem ? 'table-info' : ''}>

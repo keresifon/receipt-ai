@@ -22,8 +22,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (status === 'loading') return
 
-    if (session?.user) {
-      loadAccount(session.user.accountId)
+    if (session?.user && 'accountId' in session.user) {
+      loadAccount(session.user.accountId as string)
     } else {
       setAccount(null)
       setIsLoading(false)
@@ -49,7 +49,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   }
 
   const value: AuthContextType = {
-    user: session?.user || null,
+    user: session?.user && 'accountId' in session.user ? session.user as User : null,
     account,
     isLoading: status === 'loading' || isLoading,
     signOut: handleSignOut,

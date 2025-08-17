@@ -39,21 +39,6 @@ export default function RecordsPage() {
   const [saving, setSaving] = useState(false)
   const [categories, setCategories] = useState<string[]>([])
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
-  const [availableStores, setAvailableStores] = useState<string[]>([])
-
-  // Add HST/Discount state
-  const [showAddForm, setShowAddForm] = useState(false)
-  const [newItem, setNewItem] = useState({
-    description: '',
-    total_price: '',
-    date: '',
-    store: '',
-    category: '',
-    customStore: ''
-  })
-  const [addingItem, setAddingItem] = useState(false)
-  const [availableReceipts, setAvailableReceipts] = useState<any[]>([])
-  const [checkingReceipts, setCheckingReceipts] = useState(false)
 
   // Calculate total for current filtered records
   const totalAmount = useMemo(() => {
@@ -63,14 +48,13 @@ export default function RecordsPage() {
     }, 0)
   }, [records])
 
-  // Load categories, months, and stores
+  // Load categories and months
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [categoriesRes, monthsRes, analyticsRes] = await Promise.all([
+        const [categoriesRes, monthsRes] = await Promise.all([
           fetch('/api/categories'),
-          fetch('/api/months'),
-          fetch('/api/analytics')
+          fetch('/api/months')
         ])
         
         const categoriesData = await categoriesRes.json()
@@ -81,12 +65,6 @@ export default function RecordsPage() {
         const monthsData = await monthsRes.json()
         if (monthsRes.ok) {
           setAvailableMonths(monthsData.months || [])
-        }
-
-        const analyticsData = await analyticsRes.json()
-        if (analyticsRes.ok) {
-          const stores = (analyticsData.byStore || []).map((item: any) => item.store)
-          setAvailableStores(stores)
         }
       } catch (err) {
         console.error('Failed to load data:', err)
@@ -99,13 +77,6 @@ export default function RecordsPage() {
   useEffect(() => {
     setDate('')
   }, [month])
-
-  // Check for available receipts when date or store changes
-  useEffect(() => {
-    if (showAddForm && newItem.date && newItem.store && newItem.store !== 'custom') {
-      checkAvailableReceipts(newItem.date, newItem.store)
-    }
-  }, [newItem.date, newItem.store, showAddForm])
 
   // Load records
   const loadRecords = async (page = 1) => {
@@ -148,7 +119,7 @@ export default function RecordsPage() {
   }, [searchDebounce])
 
   const updateRecord = (id: string, field: string, value: any) => {
-    setEditing(prev => ({
+    setEditing((prev: {[key: string]: any}) => ({
       ...prev,
       [id]: { ...(prev[id] || {}), [field]: value }
     }))
@@ -160,15 +131,16 @@ export default function RecordsPage() {
     
     try {
       const entries = Object.entries(editing)
-      await Promise.all(entries.map(async ([id, fields]: [string, any]) => {
+      await Promise.all(entries.map(async ([id, fields]) => {
         const body: any = {}
-        if (fields.total_price !== undefined) body.total_price = fields.total_price
-        if (fields.category !== undefined) body.category = fields.category
-        if (fields.description !== undefined) body.description = fields.description
-        if (fields.quantity !== undefined) body.quantity = fields.quantity
-        if (fields.unit_price !== undefined) body.unit_price = fields.unit_price
-        if (fields.hst !== undefined) body.hst = fields.hst
-        if (fields.discount !== undefined) body.discount = fields.discount
+        const typedFields = fields as {[key: string]: any}
+        if (typedFields.total_price !== undefined) body.total_price = typedFields.total_price
+        if (typedFields.category !== undefined) body.category = typedFields.category
+        if (typedFields.description !== undefined) body.description = typedFields.description
+        if (typedFields.quantity !== undefined) body.quantity = typedFields.quantity
+        if (typedFields.unit_price !== undefined) body.unit_price = typedFields.unit_price
+        if (typedFields.hst !== undefined) body.hst = typedFields.hst
+        if (typedFields.discount !== undefined) body.discount = typedFields.discount
         
         const res = await fetch(`/api/items/${id}`, {
           method: 'PATCH',
@@ -209,104 +181,6 @@ export default function RecordsPage() {
     }
   }
 
-  const addHSTDiscountItem = async () => {
-    if (!newItem.description || !newItem.total_price || !newItem.date || !newItem.store) {
-      setError('Please fill in all required fields')
-      return
-    }
-
-    // Auto-fill current date if not set
-    if (!newItem.date) {
-      const today = new Date().toISOString().split('T')[0]
-      setNewItem(prev => ({ ...prev, date: today }))
-      return
-    }
-
-    setAddingItem(true)
-    setError(null)
-
-    try {
-      // Determine the store name (use custom store if selected)
-      const storeName = newItem.store === 'custom' ? newItem.customStore : newItem.store
-      
-      if (newItem.store === 'custom' && !newItem.customStore) {
-        setError('Please enter a custom store name')
-        return
-      }
-
-      // Check if we have receipts for this date/store combination
-      if (newItem.store !== 'custom' && availableReceipts.length === 0) {
-        setError(`No receipts found for ${newItem.store} on ${newItem.date}. Please create a receipt first or select a different date/store.`)
-        return
-      }
-
-      const res = await fetch('/api/items', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          description: newItem.description,
-          total_price: Number(newItem.total_price),
-          date: newItem.date,
-          store: storeName,
-          category: newItem.category || 'HST/Discount'
-        })
-      })
-
-      if (!res.ok) {
-        const error = await res.json()
-        throw new Error(error?.detail || 'Failed to add item')
-      }
-
-      // Reset form and reload records
-      setNewItem({
-        description: '',
-        total_price: '',
-        date: '',
-        store: '',
-        category: '',
-        customStore: ''
-      })
-      setShowAddForm(false)
-      await loadRecords(currentPage)
-    } catch (e: any) {
-      setError(e.message)
-    } finally {
-      setAddingItem(false)
-    }
-  }
-
-    const openAddForm = () => {
-    const today = new Date().toISOString().split('T')[0]
-    setNewItem(prev => ({ ...prev, date: today, customStore: '' }))
-    setShowAddForm(true)
-  }
-
-  const checkAvailableReceipts = async (date: string, store: string) => {
-    if (!date || !store || store === 'custom') return
-    
-    setCheckingReceipts(true)
-    try {
-      const res = await fetch(`/api/analytics?month=${date.substring(0, 7)}`)
-      const data = await res.json()
-      
-      if (res.ok && data.byStore) {
-        const storeReceipts = data.byStore
-          .filter((item: any) => item.store === store)
-          .map((item: any) => ({
-            date: item.date,
-            store: item.store,
-            total: item.total,
-            count: item.count
-          }))
-        setAvailableReceipts(storeReceipts)
-      }
-    } catch (err) {
-      console.error('Failed to check receipts:', err)
-    } finally {
-      setCheckingReceipts(false)
-    }
-  }
-
   if (loading && records.length === 0) {
     return (
       <div className="container py-5">
@@ -321,29 +195,19 @@ export default function RecordsPage() {
   }
 
   return (
-    <div className="container py-3 py-md-4">
-      <div className="row mb-4">
-        <div className="col-12 col-md-8">
+    <div className="container py-4">
+      <div className="d-flex justify-content-between align-items-center mb-4">
+        <div>
           <h1 className="h3 mb-0">Records Management</h1>
           {(month || date) && (
-            <small className="text-muted d-block mt-1">
+            <small className="text-muted">
               {month && `Filtering ${new Date(month + '-15').toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}`}
               {date && month && ' - '}
               {date && `Date: ${new Date(date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' })}`}
             </small>
           )}
-          <div className="mt-2">
-            <button
-              className="btn btn-sm btn-outline-success"
-              onClick={openAddForm}
-              title="Quick add HST or Discount items"
-            >
-              <i className="bi bi-plus-circle me-1"></i>
-              Quick Add HST/Discount
-            </button>
-          </div>
         </div>
-        <div className="col-12 col-md-4 text-start text-md-end mt-3 mt-md-0">
+        <div className="text-muted text-end">
           {pagination && (
             <>
               <div className="fw-semibold">
@@ -359,184 +223,11 @@ export default function RecordsPage() {
         </div>
       </div>
 
-      {/* Add HST/Discount Section */}
-      <div className="card mb-4">
-        <div className="card-header d-flex justify-content-between align-items-center">
-          <div>
-            <h6 className="mb-0">
-              <i className="bi bi-plus-circle me-2"></i>
-              Add HST or Discount Item
-            </h6>
-            <small className="text-muted">
-              Note: HST/Discount items are added to existing receipts. Select a date and store where you have a receipt.
-            </small>
-          </div>
-          <button
-            className="btn btn-sm btn-outline-primary"
-            onClick={() => showAddForm ? setShowAddForm(false) : openAddForm()}
-          >
-            {showAddForm ? (
-              <>
-                <i className="bi bi-chevron-up me-1"></i>
-                Hide Form
-              </>
-            ) : (
-              <>
-                <i className="bi bi-chevron-down me-1"></i>
-                Show Form
-              </>
-            )}
-          </button>
-        </div>
-        {showAddForm && (
-          <div className="card-body">
-            <div className="row g-3">
-              <div className="col-12 col-sm-6 col-md-3">
-                <label className="form-label">Type</label>
-                <select
-                  value={newItem.description}
-                  onChange={e => setNewItem(prev => ({ ...prev, description: e.target.value }))}
-                  className="form-select"
-                >
-                  <option value="">Select type...</option>
-                  <option value="HST">HST</option>
-                  <option value="Discount">Discount</option>
-                </select>
-              </div>
-              <div className="col-12 col-sm-6 col-md-3">
-                <label className="form-label">Amount</label>
-                <input
-                  type="number"
-                  step="0.01"
-                  min="0"
-                  value={newItem.total_price}
-                  onChange={e => setNewItem(prev => ({ ...prev, total_price: e.target.value }))}
-                  placeholder="0.00"
-                  className="form-control"
-                />
-              </div>
-              <div className="col-12 col-sm-6 col-md-3">
-                <label className="form-label">Date</label>
-                <input
-                  type="date"
-                  value={newItem.date}
-                  onChange={e => setNewItem(prev => ({ ...prev, date: e.target.value }))}
-                  className="form-control"
-                />
-              </div>
-              <div className="col-12 col-sm-6 col-md-3">
-                <label className="form-label">Store</label>
-                <select
-                  value={newItem.store}
-                  onChange={e => setNewItem(prev => ({ ...prev, store: e.target.value }))}
-                  className="form-select"
-                >
-                  <option value="">Select store...</option>
-                  {availableStores.map(store => (
-                    <option key={store} value={store}>
-                      {store}
-                    </option>
-                  ))}
-                  <option value="custom">+ Add Custom Store</option>
-                </select>
-                {newItem.store === 'custom' && (
-                  <input
-                    type="text"
-                    className="form-control mt-2"
-                    placeholder="Enter custom store name"
-                    onChange={e => setNewItem(prev => ({ ...prev, customStore: e.target.value }))}
-                  />
-                )}
-              </div>
-            </div>
-            
-            {/* Receipt Availability Check */}
-            {newItem.date && newItem.store && newItem.store !== 'custom' && (
-              <div className="row mt-3">
-                <div className="col-12">
-                  <div className="alert alert-info">
-                    <div className="d-flex align-items-center">
-                      <i className="bi bi-info-circle me-2"></i>
-                      <div>
-                        <strong>Receipt Check:</strong>
-                        {checkingReceipts ? (
-                          <span className="ms-2">
-                            <span className="spinner-border spinner-border-sm me-2"></span>
-                            Checking for existing receipts...
-                          </span>
-                        ) : availableReceipts.length > 0 ? (
-                          <span className="ms-2 text-success">
-                            ✓ Found {availableReceipts.length} receipt(s) for {newItem.store} on {new Date(newItem.date).toLocaleDateString()}
-                          </span>
-                        ) : (
-                          <span className="ms-2 text-warning">
-                            ⚠ No receipts found for {newItem.store} on {new Date(newItem.date).toLocaleDateString()}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-                    {availableReceipts.length > 0 && (
-                      <div className="mt-2 small">
-                        <strong>Available receipts:</strong>
-                        <ul className="mb-0 mt-1">
-                          {availableReceipts.map((receipt, index) => (
-                            <li key={index}>
-                              {receipt.store} - {receipt.date} - ${receipt.total.toFixed(2)} ({receipt.count} items)
-                            </li>
-                          ))}
-                        </ul>
-                      </div>
-                    )}
-                  </div>
-                </div>
-              </div>
-            )}
-            <div className="row mt-3">
-              <div className="col-12">
-                <button
-                  className="btn btn-success"
-                  onClick={addHSTDiscountItem}
-                  disabled={addingItem || !newItem.description || !newItem.total_price || !newItem.date || !newItem.store}
-                >
-                  {addingItem ? (
-                    <>
-                      <span className="spinner-border spinner-border-sm me-2"></span>
-                      Adding...
-                    </>
-                  ) : (
-                    <>
-                      <i className="bi bi-plus-lg me-2"></i>
-                      Add {newItem.description || 'Item'}
-                    </>
-                  )}
-                </button>
-                <button
-                  className="btn btn-outline-secondary ms-2"
-                  onClick={() => {
-                    setNewItem({
-                      description: '',
-                      total_price: '',
-                      date: '',
-                      store: '',
-                      category: '',
-                      customStore: ''
-                    })
-                    setShowAddForm(false)
-                  }}
-                >
-                  Cancel
-                </button>
-              </div>
-            </div>
-          </div>
-        )}
-      </div>
-
       {/* Search and Filters */}
       <div className="card mb-4">
         <div className="card-body">
           <div className="row g-3">
-            <div className="col-12 col-md-6">
+            <div className="col-md-6">
               <label className="form-label">Search Records</label>
               <input
                 type="text"
@@ -546,7 +237,7 @@ export default function RecordsPage() {
                 className="form-control"
               />
             </div>
-            <div className="col-12 col-sm-6 col-md-3">
+            <div className="col-md-3">
               <label className="form-label">Filter by Month</label>
               <select
                 value={month}
@@ -562,7 +253,7 @@ export default function RecordsPage() {
               </select>
             </div>
             {month && (
-              <div className="col-12 col-sm-6 col-md-3">
+              <div className="col-md-3">
                 <label className="form-label">Filter by Date</label>
                 <div className="input-group">
                   <input
@@ -586,7 +277,7 @@ export default function RecordsPage() {
                 </div>
               </div>
             )}
-            <div className="col-12 col-sm-6 col-md-3 d-flex align-items-end">
+            <div className="col-md-3 d-flex align-items-end">
               {!editMode ? (
                 <button 
                   className="btn btn-primary"
