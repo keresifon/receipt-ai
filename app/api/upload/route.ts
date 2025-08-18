@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import { GoogleGenerativeAI } from '@google/generative-ai'
 import { z } from 'zod'
 import clientPromise from '@/lib/mongodb'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import { ObjectId } from 'mongodb'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -42,6 +45,12 @@ function coerceJson(text: string): any {
 
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user || !('accountId' in session.user)) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const form = await req.formData()
     const file = form.get('file') as File | null
     const userDate = (form.get('date') as string | null) || null
@@ -68,8 +77,11 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
     ])
 
     const text = result.response?.candidates?.[0]?.content?.parts?.map(p => ('text' in p ? p.text : '')).join('') || '{}'
+    console.log('AI Response:', text)
     const json = coerceJson(text)
+    console.log('Parsed JSON:', json)
     const parsed: Receipt = ReceiptSchema.parse(json)
+    console.log('Validated Receipt:', parsed)
 
     // Overrides from user
     const date = userDate || parsed.date || ''
@@ -77,7 +89,7 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
     const notes = userNotes || parsed.notes || ''
 
     const client = await clientPromise
-    const session = client.startSession()
+    const dbSession = client.startSession()
 
     const dbName = process.env.MONGODB_DB || 'expenses'
     const db = client.db(dbName)
@@ -85,7 +97,7 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
     const itemsCol = db.collection('line_items')
 
     let receiptId: any
-    await session.withTransaction(async () => {
+    await dbSession.withTransaction(async () => {
       const receiptDoc = {
         date,
         merchant,
@@ -93,9 +105,12 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
         source: file.name || 'upload',
         createdAt: new Date(),
         totals: parsed.totals || {},
+        accountId: new ObjectId(session.user.accountId),
       }
-      const { insertedId } = await receiptsCol.insertOne(receiptDoc, { session })
+      console.log('Saving receipt:', receiptDoc)
+      const { insertedId } = await receiptsCol.insertOne(receiptDoc, { session: dbSession })
       receiptId = insertedId
+      console.log('Receipt saved with ID:', receiptId)
 
       const rows = (parsed.line_items || []).map(li => ({
         receipt_id: insertedId,
@@ -108,11 +123,16 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
         total_price: li.total_price ?? '',
         hst: li.hst ?? '',
         discount: li.discount ?? '',
+        accountId: new ObjectId(session.user.accountId),
       }))
-      if (rows.length) await itemsCol.insertMany(rows, { session })
+      if (rows.length) {
+        console.log('Saving line items:', rows)
+        await itemsCol.insertMany(rows, { session: dbSession })
+        console.log('Line items saved successfully')
+      }
     })
 
-    session.endSession()
+    dbSession.endSession()
 
     return NextResponse.json({ 
       appended: true, 
@@ -120,7 +140,11 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
       line_items: parsed.line_items || []
     })
   } catch (e: any) {
-    return NextResponse.json({ detail: e?.message || 'Server error' }, { status: 500 })
+    console.error('Upload error:', e)
+    return NextResponse.json({ 
+      detail: e?.message || 'Server error',
+      error: process.env.NODE_ENV === 'development' ? e?.stack : undefined
+    }, { status: 500 })
   }
 }
 

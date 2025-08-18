@@ -91,14 +91,18 @@ export default function UploadPage() {
 
     setLoading(true)
     try {
+      console.log('Uploading receipt...')
       const res = await fetch('/api/upload', { method: 'POST', body: fd })
       const json = await res.json()
+      console.log('Upload response:', json)
+      
       if (!res.ok) throw new Error(json?.detail || 'Upload failed')
       
       setLineItems(json.line_items || [])
       setResult(json)
       setShowItemsEditor(true)
     } catch (err: any) {
+      console.error('Upload error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -121,6 +125,9 @@ export default function UploadPage() {
         date,
         store: effectiveStore
       }))
+      
+      console.log('Saving items:', itemsWithMetadata)
+      console.log('Receipt ID:', result.receipt_id)
 
       const res = await fetch(`/api/receipts/${result.receipt_id}/items`, {
         method: 'PATCH',
