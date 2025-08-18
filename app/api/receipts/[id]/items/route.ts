@@ -39,8 +39,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         quantity: li.quantity ?? '',
         unit_price: li.unit_price ?? '',
         total_price: li.total_price ?? '',
-        hst: li.hst ?? '',
-        discount: li.discount ?? '',
+        hst: li.hst ?? null,
+        discount: li.discount ?? null,
         accountId: new ObjectId(session.user.accountId),
       }))
       console.log('Saving line items with accountId:', session.user.accountId)

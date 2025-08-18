@@ -68,8 +68,8 @@ export async function POST(req: NextRequest) {
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
 
     const system = `Extract receipt summary and line items. Return ONLY JSON with keys:
-merchant (string|null), date (YYYY-MM-DD|null), notes (string|null), totals (object with subtotal, tax, total, currency all nullable), line_items (array of {description (string), category (string|null), quantity (number|null), unit_price (number|null), total_price (number)}).
-Use null for unknowns. Normalize numbers to decimals (no currency symbols). No commentary.`
+merchant (string|null), date (YYYY-MM-DD|null), notes (string|null), totals (object with subtotal, tax, total, currency all nullable), line_items (array of {description (string), category (string|null), quantity (number|null), unit_price (number|null), total_price (number), hst (number|null), discount (number|null)}).
+Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extract HST (Harmonized Sales Tax) and discount amounts for each line item when present. No commentary.`
 
     const result = await model.generateContent([
       { text: system },
@@ -121,8 +121,8 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). No c
         quantity: li.quantity ?? '',
         unit_price: li.unit_price ?? '',
         total_price: li.total_price ?? '',
-        hst: li.hst ?? '',
-        discount: li.discount ?? '',
+        hst: li.hst ?? null,
+        discount: li.discount ?? null,
         accountId: new ObjectId(session.user.accountId),
       }))
       if (rows.length) {

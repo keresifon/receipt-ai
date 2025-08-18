@@ -2,6 +2,8 @@ import { NextRequest, NextResponse } from 'next/server'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -17,6 +19,12 @@ const CreateSchema = z.object({
 
 export async function POST(req: NextRequest) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user || !('accountId' in session.user)) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await req.json()
     const parsed = CreateSchema.parse(body)
 
@@ -31,6 +39,7 @@ export async function POST(req: NextRequest) {
       description: parsed.description,
       category: parsed.category ?? '',
       total_price: parsed.total_price,
+      accountId: new ObjectId(session.user.accountId),
     }
     const res = await items.insertOne(doc)
     return NextResponse.json({ insertedId: res.insertedId.toString() })
