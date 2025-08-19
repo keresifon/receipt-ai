@@ -7,6 +7,7 @@ import { authOptions } from '@/lib/auth'
 import { ObjectId } from 'mongodb'
 import { sanitizeSearchQuery } from '@/lib/sanitize'
 import { auditLogger } from '@/lib/audit-log'
+import { apiRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -45,8 +46,35 @@ function coerceJson(text: string): any {
   throw new Error('Model response was not valid JSON')
 }
 
+// Magic-byte detection for common image formats (deny SVG/others)
+function detectImageType(buf: Buffer): 'jpeg' | 'png' | 'webp' | null {
+  if (buf.length < 12) return null
+  // JPEG: FF D8 FF
+  if (buf[0] === 0xFF && buf[1] === 0xD8 && buf[2] === 0xFF) return 'jpeg'
+  // PNG: 89 50 4E 47 0D 0A 1A 0A
+  const pngSig = [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]
+  if (pngSig.every((v, i) => buf[i] === v)) return 'png'
+  // WEBP: RIFF....WEBP
+  if (buf[0] === 0x52 && buf[1] === 0x49 && buf[2] === 0x46 && buf[3] === 0x46 &&
+      buf[8] === 0x57 && buf[9] === 0x45 && buf[10] === 0x42 && buf[11] === 0x50) {
+    return 'webp'
+  }
+  return null
+}
+
+function sanitizeFilename(name: string): string {
+  // remove path separators and control chars; keep basic word chars, dot, dash, underscore, space
+  const cleaned = name.replace(/[\x00-\x1F\x7F]/g, '').replace(/[\\/]/g, '')
+  const safe = cleaned.replace(/[^A-Za-z0-9._\-\s]/g, '')
+  return safe || 'upload'
+}
+
 export async function POST(req: NextRequest) {
   try {
+    // Rate limit upload endpoint
+    const rl = apiRateLimit(req)
+    if (rl) return rl
+
     // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user || !('accountId' in session.user)) {
@@ -73,8 +101,34 @@ export async function POST(req: NextRequest) {
     const sanitizedMerchant = userMerchant ? sanitizeSearchQuery(userMerchant) : null
     const sanitizedNotes = userNotes ? sanitizeSearchQuery(userNotes) : null
 
+    // Read into buffer and validate magic bytes
     const ab = await file.arrayBuffer()
-    const base64Image = Buffer.from(ab).toString('base64')
+    const buf = Buffer.from(ab)
+    const detected = detectImageType(buf)
+    const allowed: Record<string, string> = {
+      jpeg: 'image/jpeg',
+      png: 'image/png',
+      webp: 'image/webp'
+    }
+
+    if (!detected) {
+      return NextResponse.json({ detail: 'Unsupported image format. Allowed: JPEG, PNG, WEBP.' }, { status: 400 })
+    }
+
+    // MIME/type consistency check; if browser type is more permissive, rely on magic bytes
+    const expectedMime = allowed[detected]
+    const providedMime = file.type
+    const mimeOk = providedMime === expectedMime || (detected === 'jpeg' && providedMime === 'image/pjpeg')
+    if (!mimeOk) {
+      return NextResponse.json({ detail: `MIME type does not match file content. Expected ${expectedMime}.` }, { status: 400 })
+    }
+
+    // Block SVG explicitly (text-based) — caught by magic, but double-ensure
+    if (providedMime === 'image/svg+xml') {
+      return NextResponse.json({ detail: 'SVG images are not allowed.' }, { status: 400 })
+    }
+
+    const base64Image = buf.toString('base64')
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string)
     const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
@@ -114,7 +168,7 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
         date,
         merchant,
         notes,
-        source: file.name || 'upload',
+        source: sanitizeFilename(file.name || 'upload'),
         createdAt: new Date(),
         totals: parsed.totals || {},
         accountId: new ObjectId(session.user.accountId),
@@ -146,6 +200,17 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
 
     dbSession.endSession()
 
+    // Log successful upload
+    try {
+      await auditLogger.logFileUpload(
+        (session.user as any).id || '',
+        (session.user as any).accountId || '',
+        String(receiptId),
+        true,
+        req
+      )
+    } catch {}
+
     return NextResponse.json({ 
       appended: true, 
       receipt_id: str(receiptId),
@@ -153,6 +218,21 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
     })
   } catch (e: any) {
     console.error('Upload error:', e)
+    // Audit failure (best-effort)
+    try {
+      const session = await getServerSession(authOptions)
+      if (session?.user && 'accountId' in session.user) {
+        await auditLogger.logSecurityEvent(
+          (session.user as any).id || undefined,
+          (session.user as any).accountId || undefined,
+          'FILE_UPLOAD_FAILED',
+          { message: e?.message || 'Unknown error' },
+          req,
+          false,
+          e?.message
+        )
+      }
+    } catch {}
     return NextResponse.json({ 
       detail: e?.message || 'Server error',
       error: process.env.NODE_ENV === 'development' ? e?.stack : undefined
