@@ -3,6 +3,8 @@ import bcrypt from 'bcryptjs'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
+import { authRateLimit } from '@/lib/rate-limit'
+import { auditLogger } from '@/lib/audit-log'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -28,6 +30,12 @@ const SignupSchema = z.object({
 })
 
 export async function POST(req: NextRequest) {
+  // Apply rate limiting
+  const rateLimitResult = authRateLimit(req)
+  if (rateLimitResult) {
+    return rateLimitResult
+  }
+
   try {
     const body = await req.json()
     const parsed = SignupSchema.parse(body)
@@ -128,11 +136,21 @@ export async function POST(req: NextRequest) {
         // Set role based on invitation
         userRole = invite.role
         
-        // Mark invite as accepted
-        await invites.updateOne(
+        // Mark invite as accepted immediately
+        const inviteUpdateResult = await invites.updateOne(
           { _id: invite._id },
-          { $set: { status: 'accepted', acceptedAt: new Date() } }
+          { 
+            $set: { 
+              status: 'accepted', 
+              acceptedAt: new Date(),
+              acceptedBy: parsed.email.toLowerCase()
+            } 
+          }
         )
+        
+        if (inviteUpdateResult.matchedCount === 0) {
+          return NextResponse.json({ detail: 'Failed to update invite status' }, { status: 500 })
+        }
         
       } catch (error) {
         return NextResponse.json({ detail: 'Invalid account ID' }, { status: 400 })
@@ -180,6 +198,31 @@ export async function POST(req: NextRequest) {
         { $set: { createdBy: userResult.insertedId.toString() } }
       )
     }
+
+    // If this was an invite, add user to account_members
+    if (parsed.invite) {
+      const accountMembers = db.collection('account_members')
+      await accountMembers.insertOne({
+        accountId: accountId,
+        userId: userResult.insertedId,
+        role: userRole,
+        joinedAt: new Date()
+      })
+    }
+
+    // Log successful account creation/joining
+    await auditLogger.logSecurityEvent(
+      userResult.insertedId.toString(),
+      accountId.toString(),
+      parsed.invite ? 'ACCOUNT_JOINED' : 'ACCOUNT_CREATION',
+      { 
+        accountName: parsed.accountName || 'existing_account',
+        userEmail: parsed.email,
+        userRole: userRole
+      },
+      req,
+      true
+    )
 
     return NextResponse.json({ 
       message: parsed.invite ? 'Account joined successfully' : 'Account created successfully',

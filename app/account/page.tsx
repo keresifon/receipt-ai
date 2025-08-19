@@ -22,6 +22,8 @@ export default function AccountPage() {
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
   const [inviteEmailDisplay, setInviteEmailDisplay] = useState('')
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [showNotifications, setShowNotifications] = useState(false)
 
   useEffect(() => {
     if (account) {
@@ -34,9 +36,10 @@ export default function AccountPage() {
     
     setLoading(true)
     try {
-      const [membersRes, invitesRes] = await Promise.all([
+      const [membersRes, invitesRes, notificationsRes] = await Promise.all([
         fetch(`/api/accounts/${account._id}/members`),
-        fetch(`/api/accounts/${account._id}/invites`)
+        fetch(`/api/accounts/${account._id}/invites`),
+        fetch('/api/notifications?unread=true&limit=10')
       ])
 
       if (membersRes.ok) {
@@ -47,6 +50,11 @@ export default function AccountPage() {
       if (invitesRes.ok) {
         const invitesData = await invitesRes.json()
         setInvites(invitesData.invites || [])
+      }
+
+      if (notificationsRes.ok) {
+        const notificationsData = await notificationsRes.json()
+        setNotifications(notificationsData.notifications || [])
       }
     } catch (error) {
       console.error('Failed to load account data:', error)
@@ -198,6 +206,29 @@ export default function AccountPage() {
     }
   }
 
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!confirm(`Are you sure you want to remove ${memberName} from this account? This action cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/accounts/${account?._id}/members/${memberId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        alert(`${memberName} has been removed from the account.`)
+        loadAccountData() // Refresh the data
+      } else {
+        const error = await response.json()
+        alert(`Failed to remove member: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Failed to remove member:', error)
+      alert('Failed to remove member. Please try again.')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="container py-5">
@@ -247,6 +278,19 @@ export default function AccountPage() {
               >
                 <i className="bi bi-gear me-2"></i>
                 Account Settings
+              </button>
+              <button
+                className={`btn btn-outline-primary position-relative ${notifications.length > 0 ? 'btn-warning' : ''}`}
+                onClick={() => setShowNotifications(!showNotifications)}
+                title="Notifications"
+              >
+                <i className="bi bi-bell me-2"></i>
+                Notifications
+                {notifications.length > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {notifications.length}
+                  </span>
+                )}
               </button>
             </div>
           </div>
@@ -410,9 +454,18 @@ export default function AccountPage() {
                         </td>
                         <td>{new Date(member.joinedAt).toLocaleDateString()}</td>
                         <td>
-                          <button className="btn btn-outline-danger btn-sm">
-                            <i className="bi bi-person-x"></i>
-                          </button>
+                          {member.role !== 'admin' && (
+                            <button 
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => handleRemoveMember(member._id, member.user?.name || 'Unknown')}
+                              title="Remove member from account"
+                            >
+                              <i className="bi bi-person-x"></i>
+                            </button>
+                          )}
+                          {member.role === 'admin' && (
+                            <span className="text-muted small">Owner</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -422,6 +475,52 @@ export default function AccountPage() {
             ) : (
               <p className="text-muted text-center mb-0">No members found.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">
+                  <i className="bi bi-bell me-2"></i>
+                  Notifications
+                </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setShowNotifications(false)}
+                >
+                  <i className="bi bi-x"></i>
+                </button>
+              </div>
+              <div className="card-body">
+                {notifications.length > 0 ? (
+                  <div className="list-group">
+                    {notifications.map((notification) => (
+                      <div key={notification._id} className="list-group-item">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div>
+                            <h6 className="mb-1">{notification.title}</h6>
+                            <p className="mb-1">{notification.message}</p>
+                            <small className="text-muted">
+                              {new Date(notification.createdAt).toLocaleString()}
+                            </small>
+                          </div>
+                          <span className={`badge bg-${notification.priority === 'high' ? 'danger' : 'secondary'}`}>
+                            {notification.priority}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted text-center mb-0">No notifications</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

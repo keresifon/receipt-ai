@@ -28,16 +28,8 @@ export async function GET(req: NextRequest) {
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
     
-    // Debug: Check if there are any items for this account
+    // Get total items count for this account
     const totalItems = await items.countDocuments({ accountId: accountId })
-    const totalAllItems = await items.countDocuments({})
-    
-    console.log('Analytics API Debug:', {
-      accountId: accountId.toString(),
-      totalItemsForAccount: totalItems,
-      totalAllItems: totalAllItems,
-      hasAccountId: !!accountId
-    })
 
     // Group by receipt and calculate net totals per receipt
     const receiptTotals = await items.aggregate([

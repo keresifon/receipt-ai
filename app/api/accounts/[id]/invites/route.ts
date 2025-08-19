@@ -29,7 +29,11 @@ export async function GET(
     const invites = db.collection('account_invites')
 
     const accountId = new ObjectId(params.id)
-    const accountInvites = await invites.find({ accountId }).toArray()
+    // Only return pending invites
+    const accountInvites = await invites.find({ 
+      accountId, 
+      status: 'pending' 
+    }).toArray()
 
     return NextResponse.json({ invites: accountInvites })
   } catch (e: any) {

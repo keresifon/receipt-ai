@@ -3,6 +3,7 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { sanitizeSearchQuery, sanitizeDate } from '@/lib/sanitize'
 
 export const dynamic = 'force-dynamic'
 
@@ -15,11 +16,11 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const search = searchParams.get('search') || ''
-    const month = searchParams.get('month') || ''
-    const date = searchParams.get('date') || ''
-    const page = parseInt(searchParams.get('page') || '1')
-    const limit = parseInt(searchParams.get('limit') || '50')
+    const search = sanitizeSearchQuery(searchParams.get('search') || '')
+    const month = sanitizeSearchQuery(searchParams.get('month') || '')
+    const date = sanitizeDate(searchParams.get('date') || '')
+    const page = Math.max(1, parseInt(searchParams.get('page') || '1'))
+    const limit = Math.min(100, Math.max(1, parseInt(searchParams.get('limit') || '50')))
     const skip = (page - 1) * limit
 
     const client = await clientPromise

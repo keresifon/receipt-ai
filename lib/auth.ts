@@ -2,6 +2,11 @@ import CredentialsProvider from 'next-auth/providers/credentials'
 import bcrypt from 'bcryptjs'
 import clientPromise from '@/lib/mongodb'
 
+// Validate required environment variables
+if (!process.env.NEXTAUTH_SECRET) {
+  throw new Error('NEXTAUTH_SECRET environment variable must be set')
+}
+
 export const authOptions = {
   providers: [
     CredentialsProvider({
@@ -48,17 +53,23 @@ export const authOptions = {
   ],
   session: {
     strategy: 'jwt' as const,
-    maxAge: 30 * 24 * 60 * 60, // 30 days
+    maxAge: 2 * 60 * 60, // 2 hours
   },
   pages: {
     signIn: '/auth/signin',
     signUp: '/auth/signup',
   },
   callbacks: {
-    async jwt({ token, user }: any) {
+    async jwt({ token, user, trigger }: any) {
       if (user) {
         token.accountId = user.accountId
         token.role = user.role
+        token.lastActivity = Date.now()
+      }
+      // Refresh/rotate every 15 minutes
+      const fifteenMinutes = 15 * 60 * 1000
+      if (!token.iat || (Date.now() - (token.lastRotatedAt || 0)) > fifteenMinutes) {
+        token.lastRotatedAt = Date.now()
       }
       return token
     },
@@ -67,6 +78,7 @@ export const authOptions = {
         session.user.id = token.sub
         session.user.accountId = token.accountId
         session.user.role = token.role
+        session.user.lastActivity = token.lastActivity
       }
       return session
     },

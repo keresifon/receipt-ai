@@ -5,6 +5,8 @@ import clientPromise from '@/lib/mongodb'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import { ObjectId } from 'mongodb'
+import { sanitizeSearchQuery } from '@/lib/sanitize'
+import { auditLogger } from '@/lib/audit-log'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -57,9 +59,19 @@ export async function POST(req: NextRequest) {
     const userMerchant = (form.get('merchant') as string | null) || null
     const userNotes = (form.get('notes') as string | null) || null
 
+    // Validate file
     if (!file || !file.type.startsWith('image/')) {
       return NextResponse.json({ detail: 'Please upload an image.' }, { status: 400 })
     }
+
+    // Validate file size (max 10MB)
+    if (file.size > 10 * 1024 * 1024) {
+      return NextResponse.json({ detail: 'File size too large. Maximum 10MB allowed.' }, { status: 400 })
+    }
+
+    // Sanitize user inputs
+    const sanitizedMerchant = userMerchant ? sanitizeSearchQuery(userMerchant) : null
+    const sanitizedNotes = userNotes ? sanitizeSearchQuery(userNotes) : null
 
     const ab = await file.arrayBuffer()
     const base64Image = Buffer.from(ab).toString('base64')
@@ -83,10 +95,10 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
     const parsed: Receipt = ReceiptSchema.parse(json)
     console.log('Validated Receipt:', parsed)
 
-    // Overrides from user
+    // Overrides from user (use sanitized values)
     const date = userDate || parsed.date || ''
-    const merchant = userMerchant || parsed.merchant || ''
-    const notes = userNotes || parsed.notes || ''
+    const merchant = sanitizedMerchant || parsed.merchant || ''
+    const notes = sanitizedNotes || parsed.notes || ''
 
     const client = await clientPromise
     const dbSession = client.startSession()

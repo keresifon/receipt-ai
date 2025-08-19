@@ -19,23 +19,14 @@ export async function GET(req: NextRequest) {
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
     
-    // Debug: Check what fields exist in the collection
-    const sampleItem = await items.findOne({ accountId: new ObjectId(session.user.accountId) })
-    console.log('Sample item structure:', sampleItem)
-
     // Get distinct stores for this account
-    console.log('Searching for stores with accountId:', session.user.accountId)
-    
     const stores = await items.aggregate([
       { $match: { accountId: new ObjectId(session.user.accountId) } },
       { $group: { _id: '$store' } },
       { $sort: { _id: 1 } }
     ]).toArray()
 
-    console.log('Raw stores aggregation result:', stores)
-    
     const storeList = stores.map(s => s._id).filter(Boolean)
-    console.log('Filtered store list:', storeList)
     
     return NextResponse.json({ stores: storeList })
   } catch (e: any) {
