@@ -4,8 +4,19 @@ import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { Resend } from 'resend'
+import { z } from 'zod'
+import { sanitizeEmail } from '@/lib/sanitize'
+import { apiRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
+
+// Zod schema for invite creation
+const CreateInviteSchema = z.object({
+  email: z.string().email('Invalid email format').min(1, 'Email is required').max(254, 'Email too long'),
+  role: z.enum(['admin', 'member', 'viewer'], { 
+    errorMap: () => ({ message: 'Role must be admin, member, or viewer' })
+  }).default('member')
+})
 
 // GET: Fetch all invites for an account
 export async function GET(
@@ -48,6 +59,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Rate limit invite creation
+    const rl = apiRateLimit(req)
+    if (rl) return rl
+
     const session = await getServerSession(authOptions)
     
     if (!session?.user) {
@@ -64,11 +79,27 @@ export async function POST(
       return NextResponse.json({ detail: 'Admin access required' }, { status: 403 })
     }
 
-    const { email, role = 'member' } = await req.json()
-
-    if (!email) {
-      return NextResponse.json({ detail: 'Email is required' }, { status: 400 })
+    // Validate and sanitize input
+    let validatedData
+    try {
+      const rawData = await req.json()
+      validatedData = CreateInviteSchema.parse(rawData)
+    } catch (validationError: any) {
+      if (validationError instanceof z.ZodError) {
+        const errors = validationError.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        return NextResponse.json({ detail: `Validation error: ${errors}` }, { status: 400 })
+      }
+      return NextResponse.json({ detail: 'Invalid JSON payload' }, { status: 400 })
     }
+
+    // Sanitize email
+    const sanitizedEmail = sanitizeEmail(validatedData.email)
+    if (!sanitizedEmail) {
+      return NextResponse.json({ detail: 'Invalid email format' }, { status: 400 })
+    }
+
+    const { role } = validatedData
+    const email = sanitizedEmail
 
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')

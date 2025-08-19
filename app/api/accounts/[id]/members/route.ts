@@ -3,8 +3,19 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { z } from 'zod'
+import { sanitizeObjectId } from '@/lib/sanitize'
+import { apiRateLimit } from '@/lib/rate-limit'
 
 export const dynamic = 'force-dynamic'
+
+// Zod schema for member addition
+const AddMemberSchema = z.object({
+  userId: z.string().min(1, 'User ID is required').max(24, 'User ID too long'),
+  role: z.enum(['admin', 'member', 'viewer'], { 
+    errorMap: () => ({ message: 'Role must be admin, member, or viewer' })
+  }).default('member')
+})
 
 // GET: Fetch all members for an account
 export async function GET(
@@ -61,6 +72,10 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
+    // Rate limit member addition
+    const rl = apiRateLimit(req)
+    if (rl) return rl
+
     const session = await getServerSession(authOptions)
     
     if (!session?.user) {
@@ -77,11 +92,27 @@ export async function POST(
       return NextResponse.json({ detail: 'Admin access required' }, { status: 403 })
     }
 
-    const { userId, role = 'member' } = await req.json()
-
-    if (!userId) {
-      return NextResponse.json({ detail: 'User ID is required' }, { status: 400 })
+    // Validate and sanitize input
+    let validatedData
+    try {
+      const rawData = await req.json()
+      validatedData = AddMemberSchema.parse(rawData)
+    } catch (validationError: any) {
+      if (validationError instanceof z.ZodError) {
+        const errors = validationError.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        return NextResponse.json({ detail: `Validation error: ${errors}` }, { status: 400 })
+      }
+      return NextResponse.json({ detail: 'Invalid JSON payload' }, { status: 400 })
     }
+
+    // Sanitize and validate ObjectId
+    const sanitizedUserId = sanitizeObjectId(validatedData.userId)
+    if (!sanitizedUserId) {
+      return NextResponse.json({ detail: 'Invalid user ID format' }, { status: 400 })
+    }
+
+    const { role } = validatedData
+    const userId = sanitizedUserId
 
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')

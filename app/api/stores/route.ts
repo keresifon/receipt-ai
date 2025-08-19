@@ -3,12 +3,17 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { apiRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
+    // Rate limit stores API access
+    const rl = apiRateLimit(req)
+    if (rl) return rl
+
     // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user || !('accountId' in session.user)) {

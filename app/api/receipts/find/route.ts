@@ -3,12 +3,18 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import { sanitizeSearchQuery, sanitizeDate } from '@/lib/sanitize'
+import { apiRateLimit } from '@/lib/rate-limit'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
+    // Rate limit receipt search
+    const rl = apiRateLimit(req)
+    if (rl) return rl
+
     // Check authentication
     const session = await getServerSession(authOptions)
     if (!session?.user || !('accountId' in session.user)) {
@@ -16,11 +22,19 @@ export async function GET(req: NextRequest) {
     }
 
     const { searchParams } = new URL(req.url)
-    const store = searchParams.get('store')
-    const date = searchParams.get('date')
+    const rawStore = searchParams.get('store')
+    const rawDate = searchParams.get('date')
+
+    if (!rawStore || !rawDate) {
+      return NextResponse.json({ detail: 'Store and date parameters are required' }, { status: 400 })
+    }
+
+    // Sanitize query parameters
+    const store = sanitizeSearchQuery(rawStore)
+    const date = sanitizeDate(rawDate)
 
     if (!store || !date) {
-      return NextResponse.json({ detail: 'Store and date parameters are required' }, { status: 400 })
+      return NextResponse.json({ detail: 'Invalid store or date format' }, { status: 400 })
     }
 
     const client = await clientPromise
