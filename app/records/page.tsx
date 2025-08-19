@@ -591,15 +591,7 @@ export default function RecordsPage() {
         </div>
       )}
 
-      {/* Debug Info */}
-      {process.env.NODE_ENV === 'development' && (
-        <div className="alert alert-info mb-3">
-          <small>
-            <strong>Debug Info:</strong> Available Stores: {availableStores.length} | 
-            Stores: {availableStores.join(', ') || 'None'}
-          </small>
-        </div>
-      )}
+
 
       {/* Add New HST/Discount Form */}
       <div className="card mb-4">

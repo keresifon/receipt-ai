@@ -8,6 +8,8 @@
     "lint": "next lint",
     "typecheck": "tsc --noEmit",
     "create-indexes": "tsx scripts/create-indexes.ts",
+    "sanitize-categories": "tsx scripts/sanitize-categories.ts",
+    "sanitize-descriptions": "tsx scripts/sanitize-descriptions.ts",
     "restart": "pkill -f 'next dev' && npm run dev",
     "env:dev": "node scripts/switch-env.js dev",
     "env:prod": "node scripts/switch-env.js prod"
