@@ -62,6 +62,11 @@ export default function RecordsPage() {
   const [newLineItemDate, setNewLineItemDate] = useState(new Date().toISOString().split('T')[0])
   const [addingLineItem, setAddingLineItem] = useState(false)
   const [linkedReceiptForLineItem, setLinkedReceiptForLineItem] = useState<any>(null)
+  
+  // Auto-categorization state
+  const [categorySuggestions, setCategorySuggestions] = useState<Array<{category: string, score: number, reason: string}>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
 
   // Calculate total for current filtered records
   const totalAmount = useMemo(() => {
@@ -283,6 +288,157 @@ export default function RecordsPage() {
     }
   }
 
+  // Auto-categorization function
+  const getCategorySuggestions = async (description: string) => {
+    if (!description || description.length < 3) {
+      setCategorySuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    setSuggestionsLoading(true)
+    try {
+      const response = await fetch('/api/categories/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCategorySuggestions(data.suggestions || [])
+        setShowSuggestions(data.suggestions && data.suggestions.length > 0)
+      } else {
+        setCategorySuggestions([])
+        setShowSuggestions(false)
+      }
+    } catch (error) {
+      console.error('Failed to get category suggestions:', error)
+      setCategorySuggestions([])
+      setShowSuggestions(false)
+    } finally {
+      setSuggestionsLoading(false)
+    }
+  }
+
+  // Handle description change with auto-categorization
+  const handleDescriptionChange = (description: string) => {
+    setNewLineItemDescription(description)
+    // Debounce the API call
+    const timeoutId = setTimeout(() => {
+      getCategorySuggestions(description)
+    }, 500)
+    return () => clearTimeout(timeoutId)
+  }
+
+  // Select a suggested category
+  const selectSuggestedCategory = (category: string) => {
+    setNewLineItemCategory(category)
+    setShowSuggestions(false)
+    setCategorySuggestions([])
+  }
+
+  // Auto-categorize existing records when editing
+  const autoCategorizeRecord = async (recordId: string, description: string) => {
+    if (!description || description.length < 3) return
+
+    try {
+      const response = await fetch('/api/categories/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.suggestions && data.suggestions.length > 0) {
+          const currentCategory = editing[recordId]?.category
+          // Auto-select the highest confidence category if none is set or if confidence is high
+          if (!currentCategory && data.suggestions[0].score > 0.6) {
+            updateRecord(recordId, 'category', data.suggestions[0].category)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to auto-categorize record:', error)
+    }
+  }
+
+  // Bulk auto-categorize uncategorized records
+  const bulkAutoCategorize = async () => {
+    const uncategorizedRecords = records.filter(record => !record.category || record.category.trim() === '')
+    
+    if (uncategorizedRecords.length === 0) {
+      alert('All records are already categorized!')
+      return
+    }
+
+    if (!confirm(`Auto-categorize ${uncategorizedRecords.length} uncategorized records?`)) {
+      return
+    }
+
+    setLoading(true)
+    let categorizedCount = 0
+
+    try {
+      for (const record of uncategorizedRecords) {
+        if (record.description && record.description.length >= 3) {
+          const response = await fetch('/api/categories/suggest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description: record.description })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.suggestions && data.suggestions.length > 0 && data.suggestions[0].score > 0.5) {
+              // Update the record directly in the database
+              const updateRes = await fetch(`/api/items/${record._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: data.suggestions[0].category })
+              })
+
+              if (updateRes.ok) {
+                categorizedCount++
+              }
+            }
+          }
+        }
+      }
+
+      alert(`Successfully auto-categorized ${categorizedCount} out of ${uncategorizedRecords.length} records!`)
+      await loadRecords(currentPage) // Reload to show updated data
+    } catch (error) {
+      console.error('Bulk auto-categorization failed:', error)
+      alert('Some records could not be auto-categorized. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle keyboard events for suggestions
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setCategorySuggestions([])
+    }
+  }
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.position-relative')) {
+        setShowSuggestions(false)
+        setCategorySuggestions([])
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
   const addNewItem = async () => {
     if (!newItemType || !newItemDate || !newItemStore || !newItemAmount) return
     
@@ -492,14 +648,25 @@ export default function RecordsPage() {
             )}
             <div className="col-md-3 d-flex align-items-end">
               {!editMode ? (
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => setEditMode(true)}
-                  disabled={records.length === 0}
-                >
-                  <i className="bi bi-pencil-square me-2"></i>
-                  Edit Records
-                </button>
+                <div className="d-flex gap-2">
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => setEditMode(true)}
+                    disabled={records.length === 0}
+                  >
+                    <i className="bi bi-pencil-square me-2"></i>
+                    Edit Records
+                  </button>
+                  <button
+                    className="btn btn-outline-info"
+                    onClick={bulkAutoCategorize}
+                    disabled={loading || records.length === 0}
+                    title="Auto-categorize uncategorized records"
+                  >
+                    <i className="bi bi-magic me-2"></i>
+                    Auto-Categorize
+                  </button>
+                </div>
               ) : (
                 <div className="d-flex gap-2">
                   <button
@@ -696,13 +863,57 @@ export default function RecordsPage() {
           <div className="row g-3">
             <div className="col-md-3">
               <label className="form-label">Description</label>
-              <input
-                type="text"
-                value={newLineItemDescription}
-                onChange={e => setNewLineItemDescription(e.target.value)}
-                placeholder="Item description"
-                className="form-control"
-              />
+              <div className="position-relative">
+                <input
+                  type="text"
+                  value={newLineItemDescription}
+                  onChange={e => handleDescriptionChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Item description"
+                  className="form-control"
+                />
+                {suggestionsLoading && (
+                  <div className="position-absolute top-100 start-0 mt-1">
+                    <small className="text-muted">
+                      <i className="bi bi-arrow-clockwise me-1"></i>
+                      Analyzing...
+                    </small>
+                  </div>
+                )}
+                {showSuggestions && categorySuggestions.length > 0 && (
+                  <div className="position-absolute top-100 start-0 mt-1 w-100 bg-white border rounded shadow-sm" style={{ zIndex: 1000 }}>
+                    <div className="p-2 border-bottom">
+                      <small className="text-muted fw-semibold">
+                        <i className="bi bi-lightbulb me-1"></i>
+                        Suggested Categories
+                      </small>
+                    </div>
+                    {categorySuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="p-2 border-bottom cursor-pointer hover-bg-light"
+                        onClick={() => selectSuggestedCategory(suggestion.category)}
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="fw-semibold">{suggestion.category}</span>
+                          <span className={`badge ${suggestion.score > 0.7 ? 'bg-success' : suggestion.score > 0.4 ? 'bg-warning' : 'bg-secondary'}`}>
+                            {Math.round(suggestion.score * 100)}%
+                          </span>
+                        </div>
+                        <small className="text-muted">{suggestion.reason}</small>
+                      </div>
+                    ))}
+                    <div className="p-2 text-center">
+                      <small className="text-muted">
+                        Click to select • ESC to close
+                      </small>
+                    </div>
+                  </div>
+                )}
+              </div>
             </div>
             <div className="col-md-2">
               <label className="form-label">Category</label>
@@ -848,12 +1059,34 @@ export default function RecordsPage() {
                       <td>{record.store}</td>
                       <td>
                         {editMode ? (
-                          <input
-                            type="text"
-                            value={editing[id]?.description ?? record.description}
-                            onChange={e => updateRecord(id, 'description', e.target.value)}
-                            className="form-control form-control-sm"
-                          />
+                          <div className="position-relative">
+                            <input
+                              type="text"
+                              value={editing[id]?.description ?? record.description}
+                              onChange={e => {
+                                updateRecord(id, 'description', e.target.value)
+                                // Auto-categorize when description changes
+                                if (e.target.value.length >= 3) {
+                                  autoCategorizeRecord(id, e.target.value)
+                                }
+                              }}
+                              className="form-control form-control-sm"
+                            />
+                            {/* Show auto-categorization indicator */}
+                            {editing[id]?.description && editing[id]?.description.length >= 3 && (
+                              <small className="text-muted d-block mt-1">
+                                <i className="bi bi-magic me-1"></i>
+                                Auto-categorizing...
+                              </small>
+                            )}
+                            {/* Show auto-categorized result */}
+                            {editing[id]?.category && editing[id]?.category !== record.category && (
+                              <small className="text-success d-block mt-1">
+                                <i className="bi bi-check-circle me-1"></i>
+                                Auto-categorized as: {editing[id]?.category}
+                              </small>
+                            )}
+                          </div>
                         ) : (
                           <span>
                             {record.description}

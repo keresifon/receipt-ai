@@ -93,6 +93,10 @@ export default function Navigation() {
                   <i className="bi bi-list-ul me-1"></i>
                   Records
                 </Link>
+                <Link href="/analytics" className="nav-link text-light fw-semibold" style={navLinkStyle}>
+                  <i className="bi bi-graph-up me-1"></i>
+                  Analytics
+                </Link>
                 <Link href="/account" className="nav-link text-light fw-semibold" style={navLinkStyle}>
                   <i className="bi bi-person-circle me-1"></i>
                   Account
