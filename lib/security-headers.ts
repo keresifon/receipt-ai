@@ -46,3 +46,4 @@ export function createSecureResponse(
   const response = NextResponse.json(body, { status, ...options })
   return applySecurityHeaders(response)
 }
+

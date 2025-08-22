@@ -143,3 +143,4 @@ export class AuditLogger {
 
 // Export singleton instance
 export const auditLogger = AuditLogger.getInstance()
+

@@ -78,3 +78,4 @@ async function checkAllInvites() {
 
 // Run the check
 checkAllInvites().catch(console.error)
+

@@ -77,3 +77,4 @@ async function checkMembership() {
 
 // Run the check
 checkMembership().catch(console.error)
+

@@ -79,3 +79,4 @@ export class CSRFProtection {
 
 // Export default instance
 export const csrfProtection = new CSRFProtection()
+

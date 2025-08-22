@@ -72,3 +72,4 @@ async function listPendingInvites() {
 
 // Run the check
 listPendingInvites().catch(console.error)
+
