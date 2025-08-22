@@ -3,6 +3,7 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useState, useEffect } from 'react'
 import { getCurrencyList, getCurrency } from '@/lib/currencies'
+import TwoFactorSetup from '@/app/components/TwoFactorSetup'
 
 export default function AccountPage() {
   const { user, account, isLoading } = useAuth()
@@ -24,6 +25,9 @@ export default function AccountPage() {
   const [inviteEmailDisplay, setInviteEmailDisplay] = useState('')
   const [notifications, setNotifications] = useState<any[]>([])
   const [showNotifications, setShowNotifications] = useState(false)
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false)
+  const [twoFactorStatus, setTwoFactorStatus] = useState<any>(null)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
 
   useEffect(() => {
     if (account) {
@@ -36,10 +40,11 @@ export default function AccountPage() {
     
     setLoading(true)
     try {
-      const [membersRes, invitesRes, notificationsRes] = await Promise.all([
+      const [membersRes, invitesRes, notificationsRes, twoFactorRes] = await Promise.all([
         fetch(`/api/accounts/${account._id}/members`),
         fetch(`/api/accounts/${account._id}/invites`),
-        fetch('/api/notifications?unread=true&limit=10')
+        fetch('/api/notifications?unread=true&limit=10'),
+        fetch('/api/auth/2fa/status')
       ])
 
       if (membersRes.ok) {
@@ -291,6 +296,14 @@ export default function AccountPage() {
                     {notifications.length}
                   </span>
                 )}
+              </button>
+              <button
+                className={`btn ${twoFactorEnabled ? 'btn-success' : 'btn-outline-success'}`}
+                onClick={() => setShowTwoFactorModal(true)}
+                title="Two-Factor Authentication"
+              >
+                <i className="bi bi-shield-lock me-2"></i>
+                {twoFactorEnabled ? '2FA Enabled' : 'Enable 2FA'}
               </button>
             </div>
           </div>
@@ -841,7 +854,27 @@ export default function AccountPage() {
           </div>
         </div>
       )}
-      
+
+      {/* Two-Factor Authentication Modal */}
+      {showTwoFactorModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Two-Factor Authentication</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowTwoFactorModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <TwoFactorSetup onClose={() => setShowTwoFactorModal(false)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )
