@@ -1,17 +1,49 @@
 import { NextRequest, NextResponse } from 'next/server'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
+import { ObjectId } from 'mongodb'
+import jwt from 'jsonwebtoken'
 
 export const dynamic = 'force-dynamic'
 
-export async function GET(_req: NextRequest) {
+export async function GET(req: NextRequest) {
   try {
+    // Check for mobile app JWT token first
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user || !user.accountId) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+    
+    const accountId = new ObjectId(user.accountId)
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
 
-    // Get distinct months from all records
+    // Get distinct months from user's records only
     const months = await items.aggregate([
-              { $match: { date: { $exists: true, $ne: '' } } },
+      { $match: { 
+        accountId: accountId,
+        date: { $exists: true, $ne: '' } 
+      }},
       { $project: { month: { $substr: ['$date', 0, 7] } } },
       { $group: { _id: '$month' } },
       { $sort: { _id: -1 } },
