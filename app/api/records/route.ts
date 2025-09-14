@@ -4,33 +4,14 @@ import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { sanitizeSearchQuery, sanitizeDate } from '@/lib/sanitize'
-import jwt from 'jsonwebtoken'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
-    // Check authentication - support both NextAuth and JWT
-    const authHeader = req.headers.get('authorization')
-    let user: any = null
+    const session = await getServerSession(authOptions)
     
-    if (authHeader?.startsWith('Bearer ')) {
-      const token = authHeader.substring(7)
-      try {
-        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
-        user = { accountId: decoded.accountId, email: decoded.email }
-      } catch (error) {
-        // JWT verification failed, try NextAuth session
-        const session = await getServerSession(authOptions)
-        user = session?.user
-      }
-    } else {
-      // No JWT token, try NextAuth session
-      const session = await getServerSession(authOptions)
-      user = session?.user
-    }
-    
-    if (!user) {
+    if (!session?.user) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
 
@@ -47,7 +28,7 @@ export async function GET(req: NextRequest) {
     const items = db.collection('line_items')
 
     // Filter by account
-    const accountId = new ObjectId(user.accountId)
+    const accountId = new ObjectId(session.user.accountId)
     const accountFilter = { accountId: accountId }
 
     // Build match criteria
@@ -66,17 +47,49 @@ export async function GET(req: NextRequest) {
         // If both month and date are specified, match exact date
         matchCriteria.date = date
       } else {
-        // If only month is specified, match month prefix
-        matchCriteria.date = { $regex: `^${month}-` }
+        // If only month is specified, match multiple date formats
+        const year = month.split('-')[0]
+        const monthNum = month.split('-')[1]
+        
+        // Support multiple date formats:
+        // 1. YYYY-MM-DD format (e.g., 2024-01-15)
+        // 2. MM/DD/YYYY format (e.g., 01/15/2024)
+        // 3. M/D/YYYY format (e.g., 1/15/2024)
+        matchCriteria.$or = [
+          { date: { $regex: `^${month}-` } }, // YYYY-MM-DD
+          { date: { $regex: `^${monthNum}/` } }, // MM/DD/YYYY
+          { date: { $regex: `^${parseInt(monthNum)}/` } } // M/D/YYYY (single digit month)
+        ]
+        
+        // If we already have $or for search, combine them
+        if (matchCriteria.$or && search) {
+          const searchOr = matchCriteria.$or
+          matchCriteria.$and = [
+            { $or: searchOr }, // Search criteria
+            { $or: [
+              { date: { $regex: `^${month}-` } },
+              { date: { $regex: `^${monthNum}/` } },
+              { date: { $regex: `^${parseInt(monthNum)}/` } }
+            ]} // Month criteria
+          ]
+          delete matchCriteria.$or
+        }
       }
     }
 
+    // Debug logging
+    console.log('Records API - Match criteria:', JSON.stringify(matchCriteria, null, 2))
+    console.log('Records API - Month filter:', month)
+    console.log('Records API - Search filter:', search)
+    
     // Get records with pagination
     const records = await items.find(matchCriteria)
       .sort({ date: -1, _id: -1 })
       .skip(skip)
       .limit(limit)
       .toArray()
+    
+    console.log(`Records API - Found ${records.length} records for month: ${month}`)
 
     // Get total count for pagination
     const totalCount = await items.countDocuments(matchCriteria)
