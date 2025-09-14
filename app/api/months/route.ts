@@ -17,8 +17,10 @@ export async function GET(req: NextRequest) {
       const token = authHeader.substring(7)
       try {
         const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        console.log('JWT decoded:', { accountId: decoded.accountId, email: decoded.email })
         user = { accountId: decoded.accountId, email: decoded.email }
       } catch (error) {
+        console.log('JWT verification failed:', error)
         // JWT verification failed, try NextAuth session
         const session = await getServerSession(authOptions)
         user = session?.user
@@ -51,6 +53,9 @@ export async function GET(req: NextRequest) {
     ]).toArray()
 
     const monthList = months.map(m => m.month).filter(Boolean)
+    
+    console.log('Months found:', monthList)
+    console.log('Account ID used:', accountId.toString())
     
     return NextResponse.json({ months: monthList })
   } catch (e: any) {
