@@ -4,6 +4,7 @@ import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { apiRateLimit } from '@/lib/rate-limit'
+import jwt from 'jsonwebtoken'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,9 +15,27 @@ export async function GET(req: NextRequest) {
     const rl = apiRateLimit(req)
     if (rl) return rl
 
-    // Check authentication
-    const session = await getServerSession(authOptions)
-    if (!session?.user || !('accountId' in session.user)) {
+    // Check authentication - support both NextAuth and JWT
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user || !('accountId' in user)) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
 
@@ -26,7 +45,7 @@ export async function GET(req: NextRequest) {
     
     // Get distinct stores for this account
     const stores = await items.aggregate([
-      { $match: { accountId: new ObjectId(session.user.accountId) } },
+      { $match: { accountId: new ObjectId(user.accountId) } },
       { $group: { _id: '$store' } },
       { $sort: { _id: 1 } }
     ]).toArray()

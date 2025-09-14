@@ -4,14 +4,33 @@ import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { sanitizeSearchQuery, sanitizeDate } from '@/lib/sanitize'
+import jwt from 'jsonwebtoken'
 
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
-    const session = await getServerSession(authOptions)
+    // Check authentication - support both NextAuth and JWT
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
     
-    if (!session?.user) {
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
 
@@ -28,7 +47,7 @@ export async function GET(req: NextRequest) {
     const items = db.collection('line_items')
 
     // Filter by account
-    const accountId = new ObjectId(session.user.accountId)
+    const accountId = new ObjectId(user.accountId)
     const accountFilter = { accountId: accountId }
 
     // Build match criteria

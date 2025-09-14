@@ -41,12 +41,33 @@ export async function GET(req: NextRequest) {
     const items = db.collection('line_items')
 
     // Get distinct months from user's records only
+    // Handle different date formats: YYYY-MM-DD, MM/DD/YYYY, DD/MM/YYYY
     const months = await items.aggregate([
       { $match: { 
         accountId: accountId,
         date: { $exists: true, $ne: '' } 
       }},
-      { $project: { month: { $substr: ['$date', 0, 7] } } },
+      { $addFields: {
+        month: {
+          $cond: {
+            if: { $regexMatch: { input: "$date", regex: /^\d{4}-\d{2}-\d{2}$/ } },
+            then: { $substr: ['$date', 0, 7] }, // YYYY-MM-DD format
+            else: {
+              $cond: {
+                if: { $regexMatch: { input: "$date", regex: /^\d{2}\/\d{2}\/\d{4}$/ } },
+                then: { $concat: [{ $substr: ['$date', 6, 4] }, '-', { $substr: ['$date', 0, 2] }] }, // MM/DD/YYYY -> YYYY-MM
+                else: {
+                  $cond: {
+                    if: { $regexMatch: { input: "$date", regex: /^\d{1,2}\/\d{1,2}\/\d{4}$/ } },
+                    then: { $concat: [{ $substr: ['$date', 6, 4] }, '-', { $substr: ['$date', 0, 2] }] }, // M/D/YYYY -> YYYY-MM
+                    else: { $substr: ['$date', 0, 7] } // Default fallback
+                  }
+                }
+              }
+            }
+          }
+        }
+      }},
       { $group: { _id: '$month' } },
       { $sort: { _id: -1 } },
       { $project: { month: '$_id', _id: 0 } }

@@ -1,30 +1,18 @@
-import { withAuth } from 'next-auth/middleware'
 import { NextResponse } from 'next/server'
 import { applySecurityHeaders } from '@/lib/security-headers'
 
-export default withAuth(
-  function middleware(req) {
-    // Enforce idle timeout (30 minutes)
-    const token: any = (req as any).nextauth?.token
-    const thirtyMinutes = 30 * 60 * 1000
-    if (token?.lastActivity && Date.now() - token.lastActivity > thirtyMinutes) {
-      const url = new URL('/auth/signin', req.url)
-      const res = NextResponse.redirect(url)
-      res.cookies.delete('next-auth.session-token')
-      res.cookies.delete('__Secure-next-auth.session-token')
-      return res
-    }
-
-    // Apply security headers to all responses
+export default async function middleware(req: any) {
+  // For API routes, allow through and let the API routes handle authentication
+  if (req.nextUrl.pathname.startsWith('/api/')) {
+    console.log('🔓 Allowing API request through:', req.nextUrl.pathname)
     const response = NextResponse.next()
     return applySecurityHeaders(response)
-  },
-  {
-    callbacks: {
-      authorized: ({ token }) => !!token
-    },
   }
-)
+
+  // For non-API routes, allow through (handled by NextAuth)
+  const response = NextResponse.next()
+  return applySecurityHeaders(response)
+}
 
 export const config = {
   matcher: [
