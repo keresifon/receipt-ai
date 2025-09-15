@@ -8,6 +8,7 @@ import { ObjectId } from 'mongodb'
 import { sanitizeSearchQuery } from '@/lib/sanitize'
 import { auditLogger } from '@/lib/audit-log'
 import { apiRateLimit } from '@/lib/rate-limit'
+import jwt from 'jsonwebtoken'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -75,9 +76,27 @@ export async function POST(req: NextRequest) {
     const rl = apiRateLimit(req)
     if (rl) return rl
 
-    // Check authentication
-    const session = await getServerSession(authOptions)
-    if (!session?.user || !('accountId' in session.user)) {
+    // Check authentication - support both NextAuth and JWT
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email, id: decoded.userId }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user || !('accountId' in user)) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
 
@@ -171,7 +190,7 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
         source: sanitizeFilename(file.name || 'upload'),
         createdAt: new Date(),
         totals: parsed.totals || {},
-        accountId: new ObjectId(session.user.accountId),
+        accountId: new ObjectId(user.accountId),
       }
       console.log('Saving receipt:', receiptDoc)
       const { insertedId } = await receiptsCol.insertOne(receiptDoc, { session: dbSession })
@@ -189,7 +208,7 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
         total_price: li.total_price ?? '',
         hst: li.hst ?? null,
         discount: li.discount ?? null,
-        accountId: new ObjectId(session.user.accountId),
+        accountId: new ObjectId(user.accountId),
       }))
       if (rows.length) {
         console.log('Saving line items:', rows)
@@ -203,8 +222,8 @@ Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extr
     // Log successful upload
     try {
       await auditLogger.logFileUpload(
-        (session.user as any).id || '',
-        (session.user as any).accountId || '',
+        user.id || '',
+        user.accountId || '',
         String(receiptId),
         true,
         req
