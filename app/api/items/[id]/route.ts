@@ -2,6 +2,9 @@ import { NextRequest, NextResponse } from 'next/server'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { z } from 'zod'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
+import jwt from 'jsonwebtoken'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -14,10 +17,36 @@ const PatchSchema = z.object({
   description: z.string().optional(),
   quantity: z.union([z.string(), z.number()]).optional(),
   unit_price: z.union([z.string(), z.number()]).optional(),
+  store: z.string().optional(),
+  date: z.string().optional(),
 }).strict()
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Check authentication - support both NextAuth and JWT
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user || !('accountId' in user)) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const id = params.id
     if (!id) return NextResponse.json({ detail: 'Missing id' }, { status: 400 })
     const body = await req.json()
@@ -35,6 +64,8 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (parsed.description !== undefined) update.description = parsed.description
     if (parsed.quantity !== undefined) update.quantity = parsed.quantity
     if (parsed.unit_price !== undefined) update.unit_price = parsed.unit_price
+    if (parsed.store !== undefined) update.store = parsed.store
+    if (parsed.date !== undefined) update.date = parsed.date
 
     const { matchedCount } = await items.updateOne({ _id: new ObjectId(id) }, { $set: update })
     if (!matchedCount) return NextResponse.json({ detail: 'Item not found' }, { status: 404 })
@@ -46,6 +77,30 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
 
 export async function DELETE(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Check authentication - support both NextAuth and JWT
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user || !('accountId' in user)) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const id = params.id
     if (!id) return NextResponse.json({ detail: 'Missing id' }, { status: 400 })
 
