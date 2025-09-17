@@ -40,9 +40,6 @@ export async function GET(req: NextRequest) {
     const { searchParams } = new URL(req.url)
     const month = searchParams.get('month')
     
-    // Debug logging - always log the month parameter
-    console.log(`Analytics API: Month parameter received: "${month}"`)
-    
     // Build date filter if month is specified
     // Simplified approach: use MongoDB's date aggregation to extract year-month
     const dateFilter = month ? {
@@ -54,25 +51,9 @@ export async function GET(req: NextRequest) {
       }
     } : {}
     
-    // Debug logging
-    if (month) {
-      console.log(`Analytics API: Filtering by month ${month}`)
-      console.log(`Date filter:`, JSON.stringify(dateFilter))
-    }
-    
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
-    
-    // Debug logging - check what actual dates exist in the database for this month
-    if (month) {
-      const sampleDates = await items.aggregate([
-        { $match: { accountId: accountId } },
-        { $project: { date: 1, _id: 0 } },
-        { $limit: 10 }
-      ]).toArray()
-      console.log(`Sample dates in database:`, sampleDates.map(d => d.date))
-    }
     
     // Get total items count for this account
     const totalItems = await items.countDocuments({ accountId: accountId })
