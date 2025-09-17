@@ -164,6 +164,26 @@ export default function HomePage() {
         </div>
       </section>
 
+      {/* Legal Links Section */}
+      <section className="py-4 bg-light">
+        <div className="container">
+          <div className="row justify-content-center">
+            <div className="col-lg-8 text-center">
+              <div className="d-flex justify-content-center gap-4 flex-wrap">
+                <Link href="/privacy" className="text-muted text-decoration-none">
+                  <i className="bi bi-shield-check me-1"></i>
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="text-muted text-decoration-none">
+                  <i className="bi bi-file-text me-1"></i>
+                  Terms of Service
+                </Link>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
       {/* CTA Section */}
       <section className="py-5 bg-dark text-white">
         <div className="container text-center">
