@@ -52,6 +52,27 @@ export async function GET(req: NextRequest) {
 
     const storeList = stores.map(s => s._id).filter(Boolean)
     
+    // If no stores exist, provide some common default stores
+    if (storeList.length === 0) {
+      const defaultStores = [
+        'Walmart',
+        'Target', 
+        'Amazon',
+        'Costco',
+        'Safeway',
+        'CVS Pharmacy',
+        'Walgreens',
+        'McDonald\'s',
+        'Starbucks',
+        'Subway',
+        'Gas Station',
+        'Grocery Store',
+        'Restaurant',
+        'Other'
+      ]
+      return NextResponse.json({ stores: defaultStores })
+    }
+    
     return NextResponse.json({ stores: storeList })
   } catch (e: any) {
     console.error('Stores API error:', e)
