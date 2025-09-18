@@ -43,25 +43,25 @@ export default function SupportPage() {
         </div>
       </section>
 
-      {/* Contact Information Section */}
+      {/* Email Support Section */}
       <section id="contact" className="py-5 bg-light">
         <div className="container">
           <div className="text-center mb-5">
-            <h2 className="display-5 fw-bold text-dark mb-3">Contact Us</h2>
+            <h2 className="display-5 fw-bold text-dark mb-3">Email Support</h2>
             <p className="lead text-secondary">
               We're here to help you with any questions or issues
             </p>
           </div>
           
-          <div className="row g-4">
-            <div className="col-md-4 text-center">
-              <div className="feature-image-container mb-3">
+          <div className="row justify-content-center">
+            <div className="col-md-6 text-center">
+              <div className="feature-image-container mb-4">
                 <img
                   src="https://images.unsplash.com/photo-1596526131083-e8c633c948d2?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80"
                   alt="Email support"
                   className="img-fluid rounded-3 shadow-sm"
                   style={{
-                    height: '200px',
+                    height: '300px',
                     width: '100%',
                     objectFit: 'cover',
                     filter: 'grayscale(0.3) brightness(0.9) contrast(1.1)',
@@ -69,57 +69,17 @@ export default function SupportPage() {
                   }}
                 />
               </div>
-              <h4 className="text-dark">Email Support</h4>
-              <p className="text-secondary">
-                Send us an email and we'll respond within 24 hours
+              <h4 className="text-dark mb-3">Get Help via Email</h4>
+              <p className="text-secondary mb-4">
+                Send us an email and we'll respond within 24 hours. We're here to help with any questions about your receipts, account settings, or technical issues.
               </p>
-              <a href="mailto:support@no-wahala.net" className="btn btn-primary">
+              <a href="mailto:support@no-wahala.net" className="btn btn-primary btn-lg">
+                <i className="bi bi-envelope me-2"></i>
                 support@no-wahala.net
               </a>
-            </div>
-            
-            <div className="col-md-4 text-center">
-              <div className="feature-image-container mb-3">
-                <img
-                  src="https://images.unsplash.com/photo-1556742049-0cfed4f6a45d?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80"
-                  alt="Live chat support"
-                  className="img-fluid rounded-3 shadow-sm"
-                  style={{
-                    height: '200px',
-                    width: '100%',
-                    objectFit: 'cover',
-                    filter: 'grayscale(0.3) brightness(0.9) contrast(1.1)',
-                    border: '2px solid rgba(0,0,0,0.1)'
-                  }}
-                />
+              <div className="mt-3">
+                <span className="badge bg-primary fs-6">24 Hour Response Time</span>
               </div>
-              <h4 className="text-secondary">Live Chat</h4>
-              <p className="text-secondary">
-                Chat with our support team during business hours
-              </p>
-              <span className="badge bg-success fs-6">Available 9 AM - 5 PM EST</span>
-            </div>
-            
-            <div className="col-md-4 text-center">
-              <div className="feature-image-container mb-3">
-                <img
-                  src="https://images.unsplash.com/photo-1551288049-bebda4e38f71?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=800&q=80"
-                  alt="Response time"
-                  className="img-fluid rounded-3 shadow-sm"
-                  style={{
-                    height: '200px',
-                    width: '100%',
-                    objectFit: 'cover',
-                    filter: 'grayscale(0.3) brightness(0.9) contrast(1.1)',
-                    border: '2px solid rgba(0,0,0,0.1)'
-                  }}
-                />
-              </div>
-              <h4 className="text-primary">Quick Response</h4>
-              <p className="text-secondary">
-                We typically respond to all inquiries within 24 hours
-              </p>
-              <span className="badge bg-primary fs-6">24 Hour Response</span>
             </div>
           </div>
         </div>
