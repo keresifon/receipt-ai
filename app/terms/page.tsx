@@ -2,18 +2,48 @@ import React from 'react'
 
 export default function TermsOfService() {
   return (
-    <div className="container py-5">
-      <div className="row justify-content-center">
-        <div className="col-lg-10">
-          <div className="card shadow-sm">
-            <div className="card-body p-5">
-              <div className="text-center mb-5">
-                <h1 className="display-4 fw-bold text-dark mb-3">Terms of Service</h1>
-                <p className="lead text-muted">
-                  <i className="bi bi-file-text me-2"></i>
-                  Last updated: September 16, 2025
+    <div>
+      {/* Hero Section */}
+      <section className="py-5 bg-dark text-white">
+        <div className="container">
+          <div className="row align-items-center">
+            <div className="col-lg-6">
+              <div>
+                <h1 className="display-4 fw-bold mb-3">Terms of Service</h1>
+                <p className="lead mb-4">
+                  Please read these terms carefully before using our service. These terms govern your use of No Wahala Receipt.
                 </p>
+                <div className="d-flex">
+                  <span className="badge bg-primary fs-6 me-3">
+                    <i className="bi bi-file-text me-1"></i>
+                    Last updated: September 16, 2025
+                  </span>
+                </div>
               </div>
+            </div>
+            <div className="col-lg-6">
+              <div>
+                <img
+                  src="https://images.unsplash.com/photo-1589829545856-d10d557cf95f?ixlib=rb-4.0.3&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D&auto=format&fit=crop&w=1000&q=80"
+                  alt="Terms and conditions"
+                  className="img-fluid rounded-3"
+                  style={{
+                    maxHeight: '320px',
+                    width: 'auto',
+                    filter: 'brightness(0.9) contrast(1.1) saturate(0.8)'
+                  }}
+                />
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Content Section */}
+      <section className="py-5">
+        <div className="container">
+          <div className="row justify-content-center">
+            <div className="col-lg-10">
 
               <div className="row">
                 <div className="col-12">
@@ -322,7 +352,7 @@ export default function TermsOfService() {
             </div>
           </div>
         </div>
-      </div>
+      </section>
     </div>
   )
 }
