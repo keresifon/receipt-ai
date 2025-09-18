@@ -50,31 +50,31 @@ export async function GET(req: NextRequest) {
       { $sort: { _id: 1 } }
     ]).toArray()
 
-    const storeList = stores.map(s => s._id).filter(Boolean)
+    const userStores = stores.map(s => s._id).filter(Boolean)
     
-    // If no stores exist, provide some common default stores
-    if (storeList.length === 0) {
-      const defaultStores = [
-        'Walmart',
-        'Target', 
-        'Amazon',
-        'Costco',
-        'Loblaws',
-        'Safeway',
-        'CVS Pharmacy',
-        'Walgreens',
-        'McDonald\'s',
-        'Starbucks',
-        'Subway',
-        'Gas Station',
-        'Grocery Store',
-        'Restaurant',
-        'Other'
-      ]
-      return NextResponse.json({ stores: defaultStores })
-    }
+    // Always provide default stores along with user's existing stores
+    const defaultStores = [
+      'Walmart',
+      'Target', 
+      'Amazon',
+      'Costco',
+      'Loblaws',
+      'Safeway',
+      'CVS Pharmacy',
+      'Walgreens',
+      'McDonald\'s',
+      'Starbucks',
+      'Subway',
+      'Gas Station',
+      'Grocery Store',
+      'Restaurant',
+      'Other'
+    ]
     
-    return NextResponse.json({ stores: storeList })
+    // Combine user stores with default stores, removing duplicates
+    const allStores = [...new Set([...userStores, ...defaultStores])].sort()
+    
+    return NextResponse.json({ stores: allStores })
   } catch (e: any) {
     console.error('Stores API error:', e)
     return NextResponse.json({ 
