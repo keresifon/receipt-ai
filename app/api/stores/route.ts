@@ -59,6 +59,7 @@ export async function GET(req: NextRequest) {
         'Target', 
         'Amazon',
         'Costco',
+        'Loblaws',
         'Safeway',
         'CVS Pharmacy',
         'Walgreens',
