@@ -96,6 +96,7 @@ export const authOptions = {
     signIn: '/auth/signin',
     signUp: '/auth/signup',
     verifyRequest: '/auth/2fa',
+    error: '/auth/signin', // Redirect errors back to signin
   },
   callbacks: {
     async signIn({ user, account, profile, email, credentials }: any) {

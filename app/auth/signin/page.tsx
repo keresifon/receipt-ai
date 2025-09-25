@@ -11,7 +11,45 @@ export default function SignInPage() {
   const [error, setError] = useState('')
   const [showTwoFactorInput, setShowTwoFactorInput] = useState(false)
   const [twoFactorToken, setTwoFactorToken] = useState('')
+  const [showForgotPassword, setShowForgotPassword] = useState(false)
+  const [forgotPasswordEmail, setForgotPasswordEmail] = useState('')
+  const [forgotPasswordLoading, setForgotPasswordLoading] = useState(false)
+  const [forgotPasswordMessage, setForgotPasswordMessage] = useState('')
   const router = useRouter()
+
+  const handleForgotPassword = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setForgotPasswordLoading(true)
+    setForgotPasswordMessage('')
+
+    try {
+      const response = await fetch('/api/auth/forgot-password', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ email: forgotPasswordEmail }),
+      })
+
+      const data = await response.json()
+
+      if (response.ok) {
+        setForgotPasswordMessage(data.message)
+        setForgotPasswordEmail('')
+        // Hide forgot password form after 3 seconds
+        setTimeout(() => {
+          setShowForgotPassword(false)
+          setForgotPasswordMessage('')
+        }, 3000)
+      } else {
+        setForgotPasswordMessage(data.detail || 'Failed to send reset email')
+      }
+    } catch (error) {
+      setForgotPasswordMessage('Failed to send reset email. Please try again.')
+    } finally {
+      setForgotPasswordLoading(false)
+    }
+  }
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -140,7 +178,7 @@ export default function SignInPage() {
                   />
                 </div>
 
-                <div className="mb-4">
+                <div className="mb-3">
                   <label htmlFor="password" className="form-label">Password</label>
                   <input
                     type="password"
@@ -151,6 +189,16 @@ export default function SignInPage() {
                     required
                     placeholder="Enter your password"
                   />
+                </div>
+
+                <div className="mb-4 text-end">
+                  <button
+                    type="button"
+                    className="btn btn-link p-0 text-decoration-none"
+                    onClick={() => setShowForgotPassword(true)}
+                  >
+                    Forgot your password?
+                  </button>
                 </div>
 
                 {showTwoFactorInput && (
@@ -201,6 +249,79 @@ export default function SignInPage() {
               </form>
             </div>
           </div>
+
+          {/* Forgot Password Form */}
+          {showForgotPassword && (
+            <div className="card mt-3">
+              <div className="card-body p-4">
+                <div className="d-flex justify-content-between align-items-center mb-3">
+                  <h5 className="mb-0">Reset Password</h5>
+                  <button
+                    type="button"
+                    className="btn-close"
+                    onClick={() => {
+                      setShowForgotPassword(false)
+                      setForgotPasswordMessage('')
+                      setForgotPasswordEmail('')
+                    }}
+                  ></button>
+                </div>
+                
+                <form onSubmit={handleForgotPassword}>
+                  {forgotPasswordMessage && (
+                    <div className={`alert ${forgotPasswordMessage.includes('sent') ? 'alert-success' : 'alert-danger'}`} role="alert">
+                      <i className={`bi ${forgotPasswordMessage.includes('sent') ? 'bi-check-circle-fill' : 'bi-exclamation-triangle-fill'} me-2`}></i>
+                      {forgotPasswordMessage}
+                    </div>
+                  )}
+
+                  <div className="mb-3">
+                    <label htmlFor="forgotPasswordEmail" className="form-label">Email Address</label>
+                    <input
+                      type="email"
+                      id="forgotPasswordEmail"
+                      className="form-control"
+                      value={forgotPasswordEmail}
+                      onChange={(e) => setForgotPasswordEmail(e.target.value)}
+                      required
+                      placeholder="Enter your email address"
+                    />
+                    <div className="form-text">
+                      We'll send you a link to reset your password
+                    </div>
+                  </div>
+
+                  <div className="d-grid gap-2">
+                    <button
+                      type="submit"
+                      className="btn btn-primary"
+                      disabled={forgotPasswordLoading}
+                    >
+                      {forgotPasswordLoading ? (
+                        <>
+                          <span className="spinner-border spinner-border-sm me-2" role="status"></span>
+                          Sending...
+                        </>
+                      ) : (
+                        'Send Reset Link'
+                      )}
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-outline-secondary"
+                      onClick={() => {
+                        setShowForgotPassword(false)
+                        setForgotPasswordMessage('')
+                        setForgotPasswordEmail('')
+                      }}
+                    >
+                      Cancel
+                    </button>
+                  </div>
+                </form>
+              </div>
+            </div>
+          )}
         </div>
       </div>
       
