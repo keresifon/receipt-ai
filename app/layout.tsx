@@ -34,10 +34,25 @@ export default function RootLayout({ children }: { children: ReactNode }) {
               {children}
               {/* Footer */}
               <footer className="bg-dark text-white py-4 mt-auto w-100">
-                <div className="container text-center">
-                  <p className="mb-0">
-                    © 2025 No-wahala.net. All rights reserved.
-                  </p>
+                <div className="container">
+                  <div className="row align-items-center">
+                    <div className="col-md-6 text-center text-md-start">
+                      <p className="mb-0">
+                        © 2025 No-wahala.net. All rights reserved.
+                      </p>
+                    </div>
+                    <div className="col-md-6 text-center text-md-end">
+                      <a 
+                        href="https://apps.apple.com/ca/app/no-wahala-receipt/id6752734272" 
+                        target="_blank" 
+                        rel="noopener noreferrer"
+                        className="btn btn-outline-light btn-sm d-inline-flex align-items-center gap-2"
+                      >
+                        <i className="bi bi-apple"></i>
+                        Download iOS App
+                      </a>
+                    </div>
+                  </div>
                 </div>
               </footer>
             </div>

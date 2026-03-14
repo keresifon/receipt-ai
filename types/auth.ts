@@ -6,6 +6,10 @@ export interface User {
   name: string
   accountId: string
   role: UserRole
+  emailVerified: boolean
+  emailVerificationToken?: string
+  emailVerificationExpires?: Date
+  createdAt: Date
 }
 
 export interface Account {
@@ -49,7 +53,9 @@ export interface AccountInvite {
 export type UserRole = 'admin' | 'member' | 'viewer'
 
 export interface Session extends DefaultSession {
-  user: User & DefaultSession['user']
+  user: User & DefaultSession['user'] & {
+    emailVerified: boolean
+  }
 }
 
 export interface AuthContextType {

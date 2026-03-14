@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>com.kere.pm2-startup</string>
+    
+    <key>ProgramArguments</key>
+    <array>
+        <string>/bin/bash</string>
+        <string>-c</string>
+        <string>rm -f /Users/kere/.pm2/dump.pm2 && /Users/kere/receipt-ai/startup-pm2-apps.sh</string>
+    </array>
+    
+    <key>RunAtLoad</key>
+    <true/>
+    
+    <key>KeepAlive</key>
+    <false/>
+    
+    <key>StandardOutPath</key>
+    <string>/Users/kere/logs/pm2-startup.out.log</string>
+    
+    <key>StandardErrorPath</key>
+    <string>/Users/kere/logs/pm2-startup.error.log</string>
+    
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>PATH</key>
+        <string>/opt/homebrew/opt/node@20/bin:/Users/kere/.nvm/versions/node/v20.19.0/bin:/usr/local/bin:/usr/bin:/bin:/usr/sbin:/sbin</string>
+        <key>NODE_PATH</key>
+        <string>/opt/homebrew/opt/node@20/bin/node</string>
+        <key>HOME</key>
+        <string>/Users/kere</string>
+        <key>USER</key>
+        <string>kere</string>
+    </dict>
+    
+    <key>WorkingDirectory</key>
+    <string>/Users/kere</string>
+    
+    <key>UserName</key>
+    <string>kere</string>
+    
+    <key>GroupName</key>
+    <string>staff</string>
+</dict>
+</plist>
+

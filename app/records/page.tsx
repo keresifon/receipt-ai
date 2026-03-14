@@ -41,6 +41,32 @@ export default function RecordsPage() {
   const [categories, setCategories] = useState<string[]>([])
   const [availableMonths, setAvailableMonths] = useState<string[]>([])
   const [accountCurrency, setAccountCurrency] = useState<string>('CAD')
+  
+  // New HST/Discount item state
+  const [newItemType, setNewItemType] = useState('')
+  const [newItemDate, setNewItemDate] = useState(new Date().toISOString().split('T')[0])
+  const [newItemStore, setNewItemStore] = useState('')
+  const [newItemAmount, setNewItemAmount] = useState('')
+  const [addingItem, setAddingItem] = useState(false)
+  const [availableStores, setAvailableStores] = useState<string[]>([])
+  const [linkedReceipt, setLinkedReceipt] = useState<any>(null)
+  
+  // New line item state
+  const [newLineItemType, setNewLineItemType] = useState('line-item')
+  const [newLineItemDescription, setNewLineItemDescription] = useState('')
+  const [newLineItemCategory, setNewLineItemCategory] = useState('')
+  const [newLineItemQuantity, setNewLineItemQuantity] = useState('')
+  const [newLineItemUnitPrice, setNewLineItemUnitPrice] = useState('')
+  const [newLineItemTotalPrice, setNewLineItemTotalPrice] = useState('')
+  const [newLineItemStore, setNewLineItemStore] = useState('')
+  const [newLineItemDate, setNewLineItemDate] = useState(new Date().toISOString().split('T')[0])
+  const [addingLineItem, setAddingLineItem] = useState(false)
+  const [linkedReceiptForLineItem, setLinkedReceiptForLineItem] = useState<any>(null)
+  
+  // Auto-categorization state
+  const [categorySuggestions, setCategorySuggestions] = useState<Array<{category: string, score: number, reason: string}>>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [suggestionsLoading, setSuggestionsLoading] = useState(false)
 
   // Calculate total for current filtered records
   const totalAmount = useMemo(() => {
@@ -50,15 +76,18 @@ export default function RecordsPage() {
     }, 0)
   }, [records])
 
-  // Load categories and months
+  // Load categories, months, and stores
   useEffect(() => {
     const loadData = async () => {
       try {
-        const [categoriesRes, monthsRes, accountRes] = await Promise.all([
+        console.log('Fetching data from APIs...')
+        const [categoriesRes, monthsRes, accountRes, storesRes] = await Promise.all([
           fetch('/api/categories'),
           fetch('/api/months'),
-          fetch('/api/accounts/me')
+          fetch('/api/accounts/me'),
+          fetch('/api/stores')
         ])
+        console.log('All API calls completed')
         
         const categoriesData = await categoriesRes.json()
         if (categoriesRes.ok) {
@@ -74,6 +103,18 @@ export default function RecordsPage() {
         if (accountRes.ok && accountData.settings?.currency) {
           setAccountCurrency(accountData.settings.currency)
         }
+
+        const storesData = await storesRes.json()
+        console.log('Stores API response:', storesData)
+        if (storesRes.ok) {
+          setAvailableStores(storesData.stores || [])
+          console.log('Available stores set:', storesData.stores || [])
+        } else {
+          console.error('Stores API failed:', storesRes.status, storesData)
+        }
+        
+        // Debug: Check if stores are being set
+        console.log('Current availableStores state:', availableStores)
       } catch (err) {
         console.error('Failed to load data:', err)
       }
@@ -85,6 +126,24 @@ export default function RecordsPage() {
   useEffect(() => {
     setDate('')
   }, [month])
+
+  // Check for linked receipt when store or date changes
+  useEffect(() => {
+    if (newItemStore && newItemDate) {
+      checkLinkedReceipt(newItemStore, newItemDate)
+    } else {
+      setLinkedReceipt(null)
+    }
+  }, [newItemStore, newItemDate])
+
+  // Check for linked receipt for line items when store or date changes
+  useEffect(() => {
+    if (newLineItemStore && newLineItemDate) {
+      checkLinkedReceiptForLineItem(newLineItemStore, newLineItemDate)
+    } else {
+      setLinkedReceiptForLineItem(null)
+    }
+  }, [newLineItemStore, newLineItemDate])
 
   // Load records
   const loadRecords = async (page = 1) => {
@@ -189,6 +248,308 @@ export default function RecordsPage() {
     }
   }
 
+  const checkLinkedReceipt = async (store: string, date: string) => {
+    if (!store || !date) {
+      setLinkedReceipt(null)
+      return
+    }
+    
+    try {
+      const receiptRes = await fetch(`/api/receipts/find?store=${encodeURIComponent(store)}&date=${date}`)
+      const receiptData = await receiptRes.json()
+      
+      if (receiptRes.ok && receiptData.receipt) {
+        setLinkedReceipt(receiptData.receipt)
+      } else {
+        setLinkedReceipt(null)
+      }
+    } catch (err) {
+      setLinkedReceipt(null)
+    }
+  }
+
+  const checkLinkedReceiptForLineItem = async (store: string, date: string) => {
+    if (!store || !date) {
+      setLinkedReceiptForLineItem(null)
+      return
+    }
+    
+    try {
+      const receiptRes = await fetch(`/api/receipts/find?store=${encodeURIComponent(store)}&date=${date}`)
+      const receiptData = await receiptRes.json()
+      
+      if (receiptRes.ok && receiptData.receipt) {
+        setLinkedReceiptForLineItem(receiptData.receipt)
+      } else {
+        setLinkedReceiptForLineItem(null)
+      }
+    } catch (err) {
+      setLinkedReceiptForLineItem(null)
+    }
+  }
+
+  // Auto-categorization function
+  const getCategorySuggestions = async (description: string) => {
+    if (!description || description.length < 3) {
+      setCategorySuggestions([])
+      setShowSuggestions(false)
+      return
+    }
+
+    setSuggestionsLoading(true)
+    try {
+      const response = await fetch('/api/categories/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        setCategorySuggestions(data.suggestions || [])
+        setShowSuggestions(data.suggestions && data.suggestions.length > 0)
+      } else {
+        setCategorySuggestions([])
+        setShowSuggestions(false)
+      }
+    } catch (error) {
+      console.error('Failed to get category suggestions:', error)
+      setCategorySuggestions([])
+      setShowSuggestions(false)
+    } finally {
+      setSuggestionsLoading(false)
+    }
+  }
+
+  // Handle description change with auto-categorization
+  const handleDescriptionChange = (description: string) => {
+    setNewLineItemDescription(description)
+    // Debounce the API call
+    const timeoutId = setTimeout(() => {
+      getCategorySuggestions(description)
+    }, 500)
+    return () => clearTimeout(timeoutId)
+  }
+
+  // Select a suggested category
+  const selectSuggestedCategory = (category: string) => {
+    setNewLineItemCategory(category)
+    setShowSuggestions(false)
+    setCategorySuggestions([])
+  }
+
+  // Auto-categorize existing records when editing
+  const autoCategorizeRecord = async (recordId: string, description: string) => {
+    if (!description || description.length < 3) return
+
+    try {
+      const response = await fetch('/api/categories/suggest', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ description })
+      })
+
+      if (response.ok) {
+        const data = await response.json()
+        if (data.suggestions && data.suggestions.length > 0) {
+          const currentCategory = editing[recordId]?.category
+          // Auto-select the highest confidence category if none is set or if confidence is high
+          if (!currentCategory && data.suggestions[0].score > 0.6) {
+            updateRecord(recordId, 'category', data.suggestions[0].category)
+          }
+        }
+      }
+    } catch (error) {
+      console.error('Failed to auto-categorize record:', error)
+    }
+  }
+
+  // Bulk auto-categorize uncategorized records
+  const bulkAutoCategorize = async () => {
+    const uncategorizedRecords = records.filter(record => !record.category || record.category.trim() === '')
+    
+    if (uncategorizedRecords.length === 0) {
+      alert('All records are already categorized!')
+      return
+    }
+
+    if (!confirm(`Auto-categorize ${uncategorizedRecords.length} uncategorized records?`)) {
+      return
+    }
+
+    setLoading(true)
+    let categorizedCount = 0
+
+    try {
+      for (const record of uncategorizedRecords) {
+        if (record.description && record.description.length >= 3) {
+          const response = await fetch('/api/categories/suggest', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ description: record.description })
+          })
+
+          if (response.ok) {
+            const data = await response.json()
+            if (data.suggestions && data.suggestions.length > 0 && data.suggestions[0].score > 0.5) {
+              // Update the record directly in the database
+              const updateRes = await fetch(`/api/items/${record._id}`, {
+                method: 'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ category: data.suggestions[0].category })
+              })
+
+              if (updateRes.ok) {
+                categorizedCount++
+              }
+            }
+          }
+        }
+      }
+
+      alert(`Successfully auto-categorized ${categorizedCount} out of ${uncategorizedRecords.length} records!`)
+      await loadRecords(currentPage) // Reload to show updated data
+    } catch (error) {
+      console.error('Bulk auto-categorization failed:', error)
+      alert('Some records could not be auto-categorized. Please try again.')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Handle keyboard events for suggestions
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Escape') {
+      setShowSuggestions(false)
+      setCategorySuggestions([])
+    }
+  }
+
+  // Close suggestions when clicking outside
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      const target = event.target as Element
+      if (!target.closest('.position-relative')) {
+        setShowSuggestions(false)
+        setCategorySuggestions([])
+      }
+    }
+
+    document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [])
+
+  const addNewItem = async () => {
+    if (!newItemType || !newItemDate || !newItemStore || !newItemAmount) return
+    
+    setAddingItem(true)
+    setError(null)
+    
+    try {
+      // First, find the most recent receipt for this store and date
+      const receiptRes = await fetch(`/api/receipts/find?store=${encodeURIComponent(newItemStore)}&date=${newItemDate}`)
+      const receiptData = await receiptRes.json()
+      
+      if (!receiptRes.ok) {
+        throw new Error(receiptData?.detail || 'Failed to find receipt')
+      }
+      
+      if (!receiptData.receipt) {
+        throw new Error(`No receipt found for ${newItemStore} on ${newItemDate}. Please ensure the receipt exists first.`)
+      }
+      
+      // Use the found receipt ID
+      const body = {
+        receipt_id: receiptData.receipt._id,
+        date: newItemDate,
+        store: newItemStore,
+        description: newItemType,
+        category: newItemType === 'HST' ? 'HST/Discount' : 'Discount',
+        total_price: newItemType === 'Discount' ? -Math.abs(Number(newItemAmount)) : Number(newItemAmount)
+      }
+      
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error?.detail || 'Failed to add item')
+      }
+      
+      // Reset form and reload records
+      setNewItemType('')
+      setNewItemDate('')
+      setNewItemStore('')
+      setNewItemAmount('')
+      await loadRecords(currentPage)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setAddingItem(false)
+    }
+  }
+
+  const addNewLineItem = async () => {
+    if (!newLineItemDescription || !newLineItemStore || !newLineItemDate || !newLineItemTotalPrice) return
+    
+    setAddingLineItem(true)
+    setError(null)
+    
+    try {
+      // First, find the receipt for this store and date
+      const receiptRes = await fetch(`/api/receipts/find?store=${encodeURIComponent(newLineItemStore)}&date=${newLineItemDate}`)
+      const receiptData = await receiptRes.json()
+      
+      if (!receiptRes.ok) {
+        throw new Error(receiptData?.detail || 'Failed to find receipt')
+      }
+      
+      if (!receiptData.receipt) {
+        throw new Error(`No receipt found for ${newLineItemStore} on ${newLineItemDate}. Please ensure the receipt exists first.`)
+      }
+      
+      // Use the found receipt ID
+      const body = {
+        receipt_id: receiptData.receipt._id,
+        date: newLineItemDate,
+        store: newLineItemStore,
+        description: newLineItemDescription,
+        category: newLineItemCategory || '',
+        quantity: newLineItemQuantity || '',
+        unit_price: newLineItemUnitPrice || '',
+        total_price: Number(newLineItemTotalPrice)
+      }
+      
+      const res = await fetch('/api/items', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body)
+      })
+      
+      if (!res.ok) {
+        const error = await res.json()
+        throw new Error(error?.detail || 'Failed to add line item')
+      }
+      
+      // Reset form and reload records
+      setNewLineItemDescription('')
+      setNewLineItemCategory('')
+      setNewLineItemQuantity('')
+      setNewLineItemUnitPrice('')
+      setNewLineItemTotalPrice('')
+      setNewLineItemStore('')
+      setNewLineItemDate(new Date().toISOString().split('T')[0])
+      await loadRecords(currentPage)
+    } catch (e: any) {
+      setError(e.message)
+    } finally {
+      setAddingLineItem(false)
+    }
+  }
+
   if (loading && records.length === 0) {
     return (
       <div className="container py-5">
@@ -287,14 +648,25 @@ export default function RecordsPage() {
             )}
             <div className="col-md-3 d-flex align-items-end">
               {!editMode ? (
-                <button 
-                  className="btn btn-primary"
-                  onClick={() => setEditMode(true)}
-                  disabled={records.length === 0}
-                >
-                  <i className="bi bi-pencil-square me-2"></i>
-                  Edit Records
-                </button>
+                <div className="d-flex gap-2">
+                  <button 
+                    className="btn btn-primary"
+                    onClick={() => setEditMode(true)}
+                    disabled={records.length === 0}
+                  >
+                    <i className="bi bi-pencil-square me-2"></i>
+                    Edit Records
+                  </button>
+                  <button
+                    className="btn btn-outline-info"
+                    onClick={bulkAutoCategorize}
+                    disabled={loading || records.length === 0}
+                    title="Auto-categorize uncategorized records"
+                  >
+                    <i className="bi bi-magic me-2"></i>
+                    Auto-Categorize
+                  </button>
+                </div>
               ) : (
                 <div className="d-flex gap-2">
                   <button
@@ -388,6 +760,277 @@ export default function RecordsPage() {
 
 
 
+      {/* Add New HST/Discount Form */}
+      <div className="card mb-4">
+        <div className="card-header">
+          <h5 className="mb-0">
+            <i className="bi bi-plus-circle me-2"></i>
+            Add New HST/Discount Item
+          </h5>
+        </div>
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label">Type</label>
+              <select
+                value={newItemType}
+                onChange={e => setNewItemType(e.target.value)}
+                className="form-select"
+              >
+                <option value="">Select Type</option>
+                <option value="HST">HST</option>
+                <option value="Discount">Discount</option>
+              </select>
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Date</label>
+              <input
+                type="date"
+                value={newItemDate}
+                onChange={e => setNewItemDate(e.target.value)}
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-3">
+              <label className="form-label">Store</label>
+              <select
+                value={newItemStore}
+                onChange={e => setNewItemStore(e.target.value)}
+                className="form-select"
+              >
+                <option value="">Select Store</option>
+                {availableStores.map(store => (
+                  <option key={store} value={store}>{store}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Amount</label>
+              <input
+                type="number"
+                step="0.01"
+                value={newItemAmount}
+                onChange={e => setNewItemAmount(e.target.value)}
+                placeholder="0.00"
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-1 d-flex align-items-end">
+              <button
+                className="btn btn-primary"
+                onClick={addNewItem}
+                disabled={!newItemType || !newItemDate || !newItemStore || !newItemAmount || addingItem}
+              >
+                {addingItem ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2"></span>
+                    Adding...
+                  </>
+                ) : (
+                  <i className="bi bi-plus"></i>
+                )}
+              </button>
+            </div>
+          </div>
+        </div>
+        
+        {/* Linked Receipt Info */}
+        {linkedReceipt && (
+          <div className="alert alert-success m-3">
+            <i className="bi bi-link-45deg me-2"></i>
+            <strong>Linked to Receipt:</strong> {linkedReceipt.merchant} on {linkedReceipt.date} 
+            (Total: {formatCurrency(linkedReceipt.total, accountCurrency)})
+          </div>
+        )}
+        {!linkedReceipt && newItemStore && newItemDate && (
+          <div className="alert alert-warning m-3">
+            <i className="bi bi-exclamation-triangle me-2"></i>
+            <strong>No Receipt Found:</strong> No receipt found for {newItemStore} on {newItemDate}. 
+            Please ensure the receipt exists before adding HST/Discount.
+          </div>
+        )}
+      </div>
+
+      {/* Add New Line Item Form */}
+      <div className="card mb-4">
+        <div className="card-header">
+          <h5 className="mb-0">
+            <i className="bi bi-plus-circle me-2"></i>
+            Add New Line Item to Receipt
+          </h5>
+        </div>
+        <div className="card-body">
+          <div className="row g-3">
+            <div className="col-md-3">
+              <label className="form-label">Description</label>
+              <div className="position-relative">
+                <input
+                  type="text"
+                  value={newLineItemDescription}
+                  onChange={e => handleDescriptionChange(e.target.value)}
+                  onKeyDown={handleKeyDown}
+                  placeholder="Item description"
+                  className="form-control"
+                />
+                {suggestionsLoading && (
+                  <div className="position-absolute top-100 start-0 mt-1">
+                    <small className="text-muted">
+                      <i className="bi bi-arrow-clockwise me-1"></i>
+                      Analyzing...
+                    </small>
+                  </div>
+                )}
+                {showSuggestions && categorySuggestions.length > 0 && (
+                  <div className="position-absolute top-100 start-0 mt-1 w-100 bg-white border rounded shadow-sm" style={{ zIndex: 1000 }}>
+                    <div className="p-2 border-bottom">
+                      <small className="text-muted fw-semibold">
+                        <i className="bi bi-lightbulb me-1"></i>
+                        Suggested Categories
+                      </small>
+                    </div>
+                    {categorySuggestions.map((suggestion, index) => (
+                      <div
+                        key={index}
+                        className="p-2 border-bottom cursor-pointer hover-bg-light"
+                        onClick={() => selectSuggestedCategory(suggestion.category)}
+                        style={{ cursor: 'pointer' }}
+                        onMouseEnter={(e) => e.currentTarget.style.backgroundColor = '#f8f9fa'}
+                        onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                      >
+                        <div className="d-flex justify-content-between align-items-center">
+                          <span className="fw-semibold">{suggestion.category}</span>
+                          <span className={`badge ${suggestion.score > 0.7 ? 'bg-success' : suggestion.score > 0.4 ? 'bg-warning' : 'bg-secondary'}`}>
+                            {Math.round(suggestion.score * 100)}%
+                          </span>
+                        </div>
+                        <small className="text-muted">{suggestion.reason}</small>
+                      </div>
+                    ))}
+                    <div className="p-2 text-center">
+                      <small className="text-muted">
+                        Click to select • ESC to close
+                      </small>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Category</label>
+              <select
+                value={newLineItemCategory}
+                onChange={e => setNewLineItemCategory(e.target.value)}
+                className="form-select"
+              >
+                <option value="">Select Category</option>
+                {categories.map(cat => (
+                  <option key={cat} value={cat}>{cat}</option>
+                ))}
+                <option value="__custom__">+ Add New</option>
+              </select>
+              {newLineItemCategory === '__custom__' && (
+                <input
+                  type="text"
+                  placeholder="Enter new category"
+                  className="form-control mt-1"
+                  onChange={e => setNewLineItemCategory(e.target.value)}
+                />
+              )}
+            </div>
+            <div className="col-md-1">
+              <label className="form-label">Qty</label>
+              <input
+                type="number"
+                step="0.01"
+                value={newLineItemQuantity}
+                onChange={e => setNewLineItemQuantity(e.target.value)}
+                placeholder="1"
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-1">
+              <label className="form-label">Unit Price</label>
+              <input
+                type="number"
+                step="0.01"
+                value={newLineItemUnitPrice}
+                onChange={e => setNewLineItemUnitPrice(e.target.value)}
+                placeholder="0.00"
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Total Price</label>
+              <input
+                type="number"
+                step="0.01"
+                value={newLineItemTotalPrice}
+                onChange={e => setNewLineItemTotalPrice(e.target.value)}
+                placeholder="0.00"
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-2">
+              <label className="form-label">Store</label>
+              <select
+                value={newLineItemStore}
+                onChange={e => setNewLineItemStore(e.target.value)}
+                className="form-select"
+              >
+                <option value="">Select Store</option>
+                {availableStores.map(store => (
+                  <option key={store} value={store}>{store}</option>
+                ))}
+              </select>
+            </div>
+            <div className="col-md-1">
+              <label className="form-label">Date</label>
+              <input
+                type="date"
+                value={newLineItemDate}
+                onChange={e => setNewLineItemDate(e.target.value)}
+                className="form-control"
+              />
+            </div>
+            <div className="col-md-1 d-flex align-items-end">
+              <button
+                className="btn btn-success"
+                onClick={addNewLineItem}
+                disabled={!newLineItemDescription || !newLineItemStore || !newLineItemDate || !newLineItemTotalPrice || addingLineItem}
+                title="Add line item to receipt"
+              >
+                {addingLineItem ? (
+                  <>
+                    <span className="spinner-border spinner-border-sm me-2"></span>
+                    Adding...
+                  </>
+                ) : (
+                  <i className="bi bi-plus"></i>
+                )}
+              </button>
+            </div>
+          </div>
+          
+          {/* Linked Receipt Info for Line Item */}
+          {linkedReceiptForLineItem && (
+            <div className="alert alert-success mt-3 mb-0">
+              <i className="bi bi-link-45deg me-2"></i>
+              <strong>Will be added to Receipt:</strong> {linkedReceiptForLineItem.merchant} on {linkedReceiptForLineItem.date} 
+              (Total: {formatCurrency(linkedReceiptForLineItem.total, accountCurrency)})
+            </div>
+          )}
+          {!linkedReceiptForLineItem && newLineItemStore && newLineItemDate && (
+            <div className="alert alert-warning mt-3 mb-0">
+              <i className="bi bi-exclamation-triangle me-2"></i>
+              <strong>No Receipt Found:</strong> No receipt found for {newLineItemStore} on {newLineItemDate}. 
+              Please ensure the receipt exists before adding line items.
+            </div>
+          )}
+        </div>
+      </div>
+
+
+
       {/* Records Table */}
       <div className="card">
         <div className="card-body p-0">
@@ -416,12 +1059,34 @@ export default function RecordsPage() {
                       <td>{record.store}</td>
                       <td>
                         {editMode ? (
-                          <input
-                            type="text"
-                            value={editing[id]?.description ?? record.description}
-                            onChange={e => updateRecord(id, 'description', e.target.value)}
-                            className="form-control form-control-sm"
-                          />
+                          <div className="position-relative">
+                            <input
+                              type="text"
+                              value={editing[id]?.description ?? record.description}
+                              onChange={e => {
+                                updateRecord(id, 'description', e.target.value)
+                                // Auto-categorize when description changes
+                                if (e.target.value.length >= 3) {
+                                  autoCategorizeRecord(id, e.target.value)
+                                }
+                              }}
+                              className="form-control form-control-sm"
+                            />
+                            {/* Show auto-categorization indicator */}
+                            {editing[id]?.description && editing[id]?.description.length >= 3 && (
+                              <small className="text-muted d-block mt-1">
+                                <i className="bi bi-magic me-1"></i>
+                                Auto-categorizing...
+                              </small>
+                            )}
+                            {/* Show auto-categorized result */}
+                            {editing[id]?.category && editing[id]?.category !== record.category && (
+                              <small className="text-success d-block mt-1">
+                                <i className="bi bi-check-circle me-1"></i>
+                                Auto-categorized as: {editing[id]?.category}
+                              </small>
+                            )}
+                          </div>
                         ) : (
                           <span>
                             {record.description}
@@ -576,7 +1241,6 @@ export default function RecordsPage() {
           </p>
         </div>
       )}
-      
 
     </div>
   )

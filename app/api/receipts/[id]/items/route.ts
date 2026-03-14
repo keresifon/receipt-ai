@@ -1,11 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { ObjectId } from 'mongodb'
 import clientPromise from '@/lib/mongodb'
+import { getServerSession } from 'next-auth'
+import { authOptions } from '@/lib/auth'
 
 export const dynamic = 'force-dynamic'
 
 export async function PATCH(req: NextRequest, { params }: { params: { id: string } }) {
   try {
+    // Check authentication
+    const session = await getServerSession(authOptions)
+    if (!session?.user || !('accountId' in session.user)) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
     const body = await req.json()
     const { line_items } = body
 
@@ -31,14 +39,21 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
         quantity: li.quantity ?? '',
         unit_price: li.unit_price ?? '',
         total_price: li.total_price ?? '',
-        hst: li.hst ?? '',
-        discount: li.discount ?? '',
+        hst: li.hst ?? null,
+        discount: li.discount ?? null,
+        accountId: new ObjectId(session.user.accountId),
       }))
+      console.log('Saving line items with accountId:', session.user.accountId)
       await items.insertMany(rows)
+      console.log('Line items saved successfully')
     }
 
     return NextResponse.json({ success: true })
   } catch (e: any) {
-    return NextResponse.json({ detail: e?.message || 'Server error' }, { status: 500 })
+    console.error('Line items update error:', e)
+    return NextResponse.json({ 
+      detail: e?.message || 'Server error',
+      error: process.env.NODE_ENV === 'development' ? e?.stack : undefined
+    }, { status: 500 })
   }
 }

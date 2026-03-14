@@ -14,3 +14,4 @@ export function NextAuthProvider({ children }: NextAuthProviderProps) {
     </SessionProvider>
   )
 }
+

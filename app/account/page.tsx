@@ -3,6 +3,8 @@
 import { useAuth } from '@/app/providers/AuthProvider'
 import { useState, useEffect } from 'react'
 import { getCurrencyList, getCurrency } from '@/lib/currencies'
+import TwoFactorSetup from '@/app/components/TwoFactorSetup'
+import { canInviteMembers, canManageAccountSettings, getRoleDisplayName, getRoleDescription, getRolePermissions } from '@/lib/role-permissions'
 
 export default function AccountPage() {
   const { user, account, isLoading } = useAuth()
@@ -22,6 +24,11 @@ export default function AccountPage() {
   const [showInviteLinkModal, setShowInviteLinkModal] = useState(false)
   const [inviteLink, setInviteLink] = useState('')
   const [inviteEmailDisplay, setInviteEmailDisplay] = useState('')
+  const [notifications, setNotifications] = useState<any[]>([])
+  const [showNotifications, setShowNotifications] = useState(false)
+  const [showTwoFactorModal, setShowTwoFactorModal] = useState(false)
+  const [twoFactorStatus, setTwoFactorStatus] = useState<any>(null)
+  const [twoFactorEnabled, setTwoFactorEnabled] = useState(false)
 
   useEffect(() => {
     if (account) {
@@ -34,9 +41,11 @@ export default function AccountPage() {
     
     setLoading(true)
     try {
-      const [membersRes, invitesRes] = await Promise.all([
+      const [membersRes, invitesRes, notificationsRes, twoFactorRes] = await Promise.all([
         fetch(`/api/accounts/${account._id}/members`),
-        fetch(`/api/accounts/${account._id}/invites`)
+        fetch(`/api/accounts/${account._id}/invites`),
+        fetch('/api/notifications?unread=true&limit=10'),
+        fetch('/api/auth/2fa/status')
       ])
 
       if (membersRes.ok) {
@@ -47,6 +56,11 @@ export default function AccountPage() {
       if (invitesRes.ok) {
         const invitesData = await invitesRes.json()
         setInvites(invitesData.invites || [])
+      }
+
+      if (notificationsRes.ok) {
+        const notificationsData = await notificationsRes.json()
+        setNotifications(notificationsData.notifications || [])
       }
     } catch (error) {
       console.error('Failed to load account data:', error)
@@ -198,6 +212,52 @@ export default function AccountPage() {
     }
   }
 
+  const handleRemoveMember = async (memberId: string, memberName: string) => {
+    if (!confirm(`Are you sure you want to remove ${memberName} from this account? This action cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/accounts/${account?._id}/members/${memberId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        alert(`${memberName} has been removed from the account.`)
+        loadAccountData() // Refresh the data
+      } else {
+        const error = await response.json()
+        alert(`Failed to remove member: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Failed to remove member:', error)
+      alert('Failed to remove member. Please try again.')
+    }
+  }
+
+  const handleDeleteInvitation = async (inviteId: string, email: string) => {
+    if (!confirm(`Are you sure you want to delete the invitation for ${email}? This action cannot be undone.`)) {
+      return
+    }
+    
+    try {
+      const response = await fetch(`/api/accounts/${account?._id}/invites?inviteId=${inviteId}`, {
+        method: 'DELETE'
+      })
+
+      if (response.ok) {
+        alert(`Invitation for ${email} has been deleted.`)
+        loadAccountData() // Refresh the data
+      } else {
+        const error = await response.json()
+        alert(`Failed to delete invitation: ${error.detail}`)
+      }
+    } catch (error) {
+      console.error('Failed to delete invitation:', error)
+      alert('Failed to delete invitation. Please try again.')
+    }
+  }
+
   if (isLoading) {
     return (
       <div className="container py-5">
@@ -230,23 +290,51 @@ export default function AccountPage() {
             <div>
               <h1 className="h3 mb-2 text-dark">Account Management</h1>
               <p className="text-muted mb-0">
-                Manage your family account, invite members, and update settings.
+                {user.role === 'viewer' 
+                  ? 'View your family account information and member details.'
+                  : 'Manage your family account, invite members, and update settings.'
+                }
               </p>
             </div>
             <div className="d-flex gap-2">
+              {canInviteMembers(user.role) && (
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={openInviteModal}
+                >
+                  <i className="bi bi-person-plus me-2"></i>
+                  Invite Family Member
+                </button>
+              )}
+              {canManageAccountSettings(user.role) && (
+                <button
+                  className="btn btn-outline-primary"
+                  onClick={openSettingsModal}
+                >
+                  <i className="bi bi-gear me-2"></i>
+                  Account Settings
+                </button>
+              )}
               <button
-                className="btn btn-outline-primary"
-                onClick={openInviteModal}
+                className={`btn btn-outline-primary position-relative ${notifications.length > 0 ? 'btn-warning' : ''}`}
+                onClick={() => setShowNotifications(!showNotifications)}
+                title="Notifications"
               >
-                <i className="bi bi-person-plus me-2"></i>
-                Invite Family Member
+                <i className="bi bi-bell me-2"></i>
+                Notifications
+                {notifications.length > 0 && (
+                  <span className="position-absolute top-0 start-100 translate-middle badge rounded-pill bg-danger">
+                    {notifications.length}
+                  </span>
+                )}
               </button>
               <button
-                className="btn btn-outline-primary"
-                onClick={openSettingsModal}
+                className={`btn ${twoFactorEnabled ? 'btn-success' : 'btn-outline-success'}`}
+                onClick={() => setShowTwoFactorModal(true)}
+                title="Two-Factor Authentication"
               >
-                <i className="bi bi-gear me-2"></i>
-                Account Settings
+                <i className="bi bi-shield-lock me-2"></i>
+                {twoFactorEnabled ? '2FA Enabled' : 'Enable 2FA'}
               </button>
             </div>
           </div>
@@ -285,47 +373,138 @@ export default function AccountPage() {
             </div>
           </div>
           
-          {/* Pending Invites Side Box */}
-          <div className="col-12 col-lg-4">
-            <div className="card h-100">
-              <div className="card-header">
-                <h6 className="mb-0">
-                  <i className="bi bi-hourglass-split me-2"></i>
-                  Pending Invites
-                </h6>
-              </div>
-              <div className="card-body">
-                <div className="text-center">
-                  {invites.length > 0 ? (
-                    <>
-                      <div className="h2 text-info mb-2">{invites.length}</div>
-                      <p className="text-muted mb-3">Invitations awaiting response</p>
-                      <button 
-                        className="btn btn-outline-info btn-sm"
-                        onClick={() => setShowInviteModal(true)}
-                      >
-                        <i className="bi bi-person-plus me-2"></i>
-                        Invite More
-                      </button>
-                    </>
-                  ) : (
-                    <>
-                      <div className="h2 text-muted mb-2">0</div>
-                      <p className="text-muted mb-3">No pending invitations</p>
-                      <button 
-                        className="btn btn-outline-info btn-sm"
-                        onClick={() => setShowInviteModal(true)}
-                      >
-                        <i className="bi bi-person-plus me-2"></i>
-                        Send Invite
-                      </button>
-                    </>
-                  )}
+          {/* Role Information Card - Show for viewers */}
+          {user.role === 'viewer' && (
+            <div className="col-12 mb-4">
+              <div className="card border-info">
+                <div className="card-header bg-info text-white">
+                  <h5 className="mb-0">
+                    <i className="bi bi-info-circle me-2"></i>
+                    Your Role: {getRoleDisplayName(user.role)}
+                  </h5>
+                </div>
+                <div className="card-body">
+                  <p className="text-muted mb-3">{getRoleDescription(user.role)}</p>
+                  <div className="row">
+                    <div className="col-12">
+                      <h6 className="fw-semibold mb-2">Your Permissions:</h6>
+                      <ul className="list-unstyled mb-0">
+                        {getRolePermissions(user.role).map((permission, index) => (
+                          <li key={index} className="mb-1">
+                            <i className="bi bi-check-circle-fill text-success me-2"></i>
+                            {permission}
+                          </li>
+                        ))}
+                      </ul>
+                    </div>
+                  </div>
+                  <div className="mt-3 p-3 bg-light rounded">
+                    <small className="text-muted">
+                      <i className="bi bi-info-circle me-1"></i>
+                      Need more permissions? Contact your account administrator to request a role change.
+                    </small>
+                  </div>
                 </div>
               </div>
             </div>
-          </div>
+          )}
+          
+          {/* Pending Invites Side Box - Only show for admins */}
+          {canInviteMembers(user.role) && (
+            <div className="col-12 col-lg-4">
+              <div className="card h-100">
+                <div className="card-header">
+                  <h6 className="mb-0">
+                    <i className="bi bi-hourglass-split me-2"></i>
+                    Pending Invites
+                  </h6>
+                </div>
+                <div className="card-body">
+                  <div className="text-center">
+                    {invites.length > 0 ? (
+                      <>
+                        <div className="h2 text-info mb-2">{invites.length}</div>
+                        <p className="text-muted mb-3">Invitations awaiting response</p>
+                        <button 
+                          className="btn btn-outline-info btn-sm"
+                          onClick={() => setShowInviteModal(true)}
+                        >
+                          <i className="bi bi-person-plus me-2"></i>
+                          Invite More
+                        </button>
+                      </>
+                    ) : (
+                      <>
+                        <div className="h2 text-muted mb-2">0</div>
+                        <p className="text-muted mb-3">No pending invitations</p>
+                        <button 
+                          className="btn btn-outline-info btn-sm"
+                          onClick={() => setShowInviteModal(true)}
+                        >
+                          <i className="bi bi-person-plus me-2"></i>
+                          Send Invite
+                        </button>
+                      </>
+                    )}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
+
+        {/* Pending Invitations List - Only show for admins */}
+        {canInviteMembers(user.role) && invites.length > 0 && (
+          <div className="card mb-4">
+            <div className="card-header d-flex justify-content-between align-items-center">
+              <h5 className="mb-0">
+                <i className="bi bi-hourglass-split me-2"></i>
+                Pending Invitations
+              </h5>
+              <span className="badge bg-info">{invites.length}</span>
+            </div>
+            <div className="card-body">
+              <div className="table-responsive">
+                <table className="table table-sm">
+                  <thead>
+                    <tr>
+                      <th>Email</th>
+                      <th>Role</th>
+                      <th>Invited</th>
+                      <th>Status</th>
+                      <th>Actions</th>
+                    </tr>
+                  </thead>
+                  <tbody>
+                    {invites.map((invite) => (
+                      <tr key={invite._id}>
+                        <td>{invite.email}</td>
+                        <td>
+                          <span className={`badge bg-${invite.role === 'admin' ? 'primary' : 'secondary'}`}>
+                            {invite.role.charAt(0).toUpperCase() + invite.role.slice(1)}
+                          </span>
+                        </td>
+                        <td>{new Date(invite.invitedAt).toLocaleDateString()}</td>
+                        <td>
+                          <span className="badge bg-warning">Pending</span>
+                        </td>
+                        <td>
+                          <button 
+                            className="btn btn-outline-danger btn-sm"
+                            onClick={() => handleDeleteInvitation(invite._id, invite.email)}
+                            title="Delete invitation"
+                          >
+                            <i className="bi bi-trash"></i>
+                          </button>
+                        </td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
 
         {/* User Information */}
           <div className="card mb-4">
@@ -410,9 +589,18 @@ export default function AccountPage() {
                         </td>
                         <td>{new Date(member.joinedAt).toLocaleDateString()}</td>
                         <td>
-                          <button className="btn btn-outline-danger btn-sm">
-                            <i className="bi bi-person-x"></i>
-                          </button>
+                          {member.role !== 'admin' && (
+                            <button 
+                              className="btn btn-outline-danger btn-sm"
+                              onClick={() => handleRemoveMember(member._id, member.user?.name || 'Unknown')}
+                              title="Remove member from account"
+                            >
+                              <i className="bi bi-person-x"></i>
+                            </button>
+                          )}
+                          {member.role === 'admin' && (
+                            <span className="text-muted small">Owner</span>
+                          )}
                         </td>
                       </tr>
                     ))}
@@ -422,6 +610,52 @@ export default function AccountPage() {
             ) : (
               <p className="text-muted text-center mb-0">No members found.</p>
             )}
+          </div>
+        </div>
+      )}
+
+      {/* Notifications Panel */}
+      {showNotifications && (
+        <div className="row mb-4">
+          <div className="col-12">
+            <div className="card">
+              <div className="card-header d-flex justify-content-between align-items-center">
+                <h5 className="mb-0">
+                  <i className="bi bi-bell me-2"></i>
+                  Notifications
+                </h5>
+                <button
+                  className="btn btn-sm btn-outline-secondary"
+                  onClick={() => setShowNotifications(false)}
+                >
+                  <i className="bi bi-x"></i>
+                </button>
+              </div>
+              <div className="card-body">
+                {notifications.length > 0 ? (
+                  <div className="list-group">
+                    {notifications.map((notification) => (
+                      <div key={notification._id} className="list-group-item">
+                        <div className="d-flex justify-content-between align-items-start">
+                          <div>
+                            <h6 className="mb-1">{notification.title}</h6>
+                            <p className="mb-1">{notification.message}</p>
+                            <small className="text-muted">
+                              {new Date(notification.createdAt).toLocaleString()}
+                            </small>
+                          </div>
+                          <span className={`badge bg-${notification.priority === 'high' ? 'danger' : 'secondary'}`}>
+                            {notification.priority}
+                          </span>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="text-muted text-center mb-0">No notifications</p>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}
@@ -742,7 +976,27 @@ export default function AccountPage() {
           </div>
         </div>
       )}
-      
+
+      {/* Two-Factor Authentication Modal */}
+      {showTwoFactorModal && (
+        <div className="modal show d-block" style={{ backgroundColor: 'rgba(0,0,0,0.5)' }}>
+          <div className="modal-dialog modal-lg">
+            <div className="modal-content">
+              <div className="modal-header">
+                <h5 className="modal-title">Two-Factor Authentication</h5>
+                <button 
+                  type="button" 
+                  className="btn-close" 
+                  onClick={() => setShowTwoFactorModal(false)}
+                ></button>
+              </div>
+              <div className="modal-body">
+                <TwoFactorSetup onClose={() => setShowTwoFactorModal(false)} />
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
 
     </div>
   )

@@ -48,13 +48,22 @@ export default function HomePage() {
                 Organize your family's expenses with AI-powered receipt scanning, 
                 collaborative tracking, and insightful analytics.
               </p>
-              <div className="d-flex gap-3">
+              <div className="d-flex gap-3 flex-wrap">
                 <Link href="/auth/signup" className="btn btn-light btn-lg px-4">
                   Get Started Free
                 </Link>
                 <Link href="/auth/signin" className="btn btn-outline-light btn-lg px-4">
                   Sign In
                 </Link>
+                <a 
+                  href="https://apps.apple.com/ca/app/no-wahala-receipt/id6752734272" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn btn-outline-light btn-lg px-4 d-flex align-items-center gap-2"
+                >
+                  <i className="bi bi-apple"></i>
+                  Download App
+                </a>
               </div>
             </div>
             <div className="col-lg-6">
@@ -159,6 +168,26 @@ export default function HomePage() {
               <p className="text-secondary">
                 Get insights into your spending patterns with detailed analytics and reports.
               </p>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Legal Links Section */}
+      <section className="py-4 bg-light">
+        <div className="container">
+          <div className="row justify-content-center">
+            <div className="col-lg-8 text-center">
+              <div className="d-flex justify-content-center gap-4 flex-wrap">
+                <Link href="/privacy" className="text-muted text-decoration-none">
+                  <i className="bi bi-shield-check me-1"></i>
+                  Privacy Policy
+                </Link>
+                <Link href="/terms" className="text-muted text-decoration-none">
+                  <i className="bi bi-file-text me-1"></i>
+                  Terms of Service
+                </Link>
+              </div>
             </div>
           </div>
         </div>

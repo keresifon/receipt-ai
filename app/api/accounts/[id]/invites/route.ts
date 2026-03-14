@@ -4,8 +4,41 @@ import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { Resend } from 'resend'
+import { z } from 'zod'
+import { sanitizeEmail } from '@/lib/sanitize'
+import { apiRateLimit } from '@/lib/rate-limit'
+import jwt from 'jsonwebtoken'
 
 export const dynamic = 'force-dynamic'
+
+// Helper function to authenticate JWT token
+async function authenticateJWT(req: NextRequest) {
+  const authHeader = req.headers.get('authorization')
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+    return null
+  }
+  
+  const token = authHeader.substring(7)
+  try {
+    const decoded = jwt.verify(token, process.env.JWT_SECRET!) as any
+    return {
+      userId: decoded.userId,
+      email: decoded.email,
+      accountId: decoded.accountId,
+      role: decoded.role
+    }
+  } catch (error) {
+    return null
+  }
+}
+
+// Zod schema for invite creation
+const CreateInviteSchema = z.object({
+  email: z.string().email('Invalid email format').min(1, 'Email is required').max(254, 'Email too long'),
+  role: z.enum(['admin', 'member', 'viewer'], { 
+    errorMap: () => ({ message: 'Role must be admin, member, or viewer' })
+  }).default('member')
+})
 
 // GET: Fetch all invites for an account
 export async function GET(
@@ -13,14 +46,28 @@ export async function GET(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    // Try JWT authentication first (for mobile apps)
+    let user = await authenticateJWT(req)
     
-    if (!session?.user) {
+    // If JWT fails, try NextAuth session (for web apps)
+    if (!user) {
+      const session = await getServerSession(authOptions)
+      if (session?.user) {
+        user = {
+          userId: session.user.id,
+          email: session.user.email,
+          accountId: session.user.accountId,
+          role: session.user.role
+        }
+      }
+    }
+    
+    if (!user) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
 
     // Check if user has access to this account
-    if (session.user.accountId !== params.id) {
+    if (user.accountId !== params.id) {
       return NextResponse.json({ detail: 'Forbidden' }, { status: 403 })
     }
 
@@ -29,7 +76,11 @@ export async function GET(
     const invites = db.collection('account_invites')
 
     const accountId = new ObjectId(params.id)
-    const accountInvites = await invites.find({ accountId }).toArray()
+    // Only return pending invites
+    const accountInvites = await invites.find({ 
+      accountId, 
+      status: 'pending' 
+    }).toArray()
 
     return NextResponse.json({ invites: accountInvites })
   } catch (e: any) {
@@ -44,27 +95,61 @@ export async function POST(
   { params }: { params: { id: string } }
 ) {
   try {
-    const session = await getServerSession(authOptions)
+    // Rate limit invite creation
+    const rl = apiRateLimit(req)
+    if (rl) return rl
+
+    // Try JWT authentication first (for mobile apps)
+    let user = await authenticateJWT(req)
     
-    if (!session?.user) {
+    // If JWT fails, try NextAuth session (for web apps)
+    if (!user) {
+      const session = await getServerSession(authOptions)
+      if (session?.user) {
+        user = {
+          userId: session.user.id,
+          email: session.user.email,
+          accountId: session.user.accountId,
+          role: session.user.role
+        }
+      }
+    }
+    
+    if (!user) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
 
     // Check if user has access to this account
-    if (session.user.accountId !== params.id) {
+    if (user.accountId !== params.id) {
       return NextResponse.json({ detail: 'Forbidden' }, { status: 403 })
     }
 
     // Check if user is admin
-    if (session.user.role !== 'admin') {
+    if (user.role !== 'admin') {
       return NextResponse.json({ detail: 'Admin access required' }, { status: 403 })
     }
 
-    const { email, role = 'member' } = await req.json()
-
-    if (!email) {
-      return NextResponse.json({ detail: 'Email is required' }, { status: 400 })
+    // Validate and sanitize input
+    let validatedData
+    try {
+      const rawData = await req.json()
+      validatedData = CreateInviteSchema.parse(rawData)
+    } catch (validationError: any) {
+      if (validationError instanceof z.ZodError) {
+        const errors = validationError.errors.map(e => `${e.path.join('.')}: ${e.message}`).join(', ')
+        return NextResponse.json({ detail: `Validation error: ${errors}` }, { status: 400 })
+      }
+      return NextResponse.json({ detail: 'Invalid JSON payload' }, { status: 400 })
     }
+
+    // Sanitize email
+    const sanitizedEmail = sanitizeEmail(validatedData.email)
+    if (!sanitizedEmail) {
+      return NextResponse.json({ detail: 'Invalid email format' }, { status: 400 })
+    }
+
+    const { role } = validatedData
+    const email = sanitizedEmail
 
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')
@@ -100,10 +185,11 @@ export async function POST(
       console.log('✅ Inviting new user to join account:', email)
     }
 
-    // Check if invite already exists
+    // Check if a pending invite already exists
     const existingInvite = await invites.findOne({ 
       accountId: new ObjectId(params.id), 
-      email 
+      email,
+      status: 'pending'
     })
     if (existingInvite) {
       return NextResponse.json({ detail: 'Invite already sent' }, { status: 400 })
@@ -113,7 +199,7 @@ export async function POST(
       accountId: new ObjectId(params.id),
       email,
       role,
-      invitedBy: new ObjectId(session.user.id),
+      invitedBy: new ObjectId(user.userId),
       invitedAt: new Date(),
       status: 'pending',
       token: Math.random().toString(36).substring(2, 15) + Math.random().toString(36).substring(2, 15)
@@ -175,7 +261,7 @@ export async function POST(
               </p>
               <hr style="border: none; border-top: 1px solid #dee2e6; margin: 30px 0;">
               <p style="color: #6c757d; font-size: 12px;">
-                This invitation was sent by ${session.user.email}.<br>
+                This invitation was sent by ${user.email}.<br>
                 If you didn't expect this invitation, you can safely ignore this email.
               </p>
             </div>
@@ -221,6 +307,74 @@ export async function POST(
     })
   } catch (e: any) {
     console.error('Error creating invite:', e)
+    return NextResponse.json({ detail: 'Server error' }, { status: 500 })
+  }
+}
+
+// DELETE: Delete an invitation
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: { id: string } }
+) {
+  try {
+    // Try JWT authentication first (for mobile apps)
+    let user = await authenticateJWT(req)
+    
+    // If JWT fails, try NextAuth session (for web apps)
+    if (!user) {
+      const session = await getServerSession(authOptions)
+      if (session?.user) {
+        user = {
+          userId: session.user.id,
+          email: session.user.email,
+          accountId: session.user.accountId,
+          role: session.user.role
+        }
+      }
+    }
+    
+    if (!user) {
+      return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Check if user has access to this account
+    if (user.accountId !== params.id) {
+      return NextResponse.json({ detail: 'Forbidden' }, { status: 403 })
+    }
+
+    // Check if user is admin
+    if (user.role !== 'admin') {
+      return NextResponse.json({ detail: 'Admin access required' }, { status: 403 })
+    }
+
+    // Get invitation ID from query parameters
+    const { searchParams } = new URL(req.url)
+    const inviteId = searchParams.get('inviteId')
+    
+    if (!inviteId) {
+      return NextResponse.json({ detail: 'Invitation ID is required' }, { status: 400 })
+    }
+
+    const client = await clientPromise
+    const db = client.db(process.env.MONGODB_DB || 'expenses')
+    const invites = db.collection('account_invites')
+
+    // Delete the invitation
+    const result = await invites.deleteOne({ 
+      _id: new ObjectId(inviteId),
+      accountId: new ObjectId(params.id)
+    })
+
+    if (result.deletedCount === 0) {
+      return NextResponse.json({ detail: 'Invitation not found' }, { status: 404 })
+    }
+
+    return NextResponse.json({ 
+      message: 'Invitation deleted successfully',
+      deletedCount: result.deletedCount
+    })
+  } catch (e: any) {
+    console.error('Error deleting invite:', e)
     return NextResponse.json({ detail: 'Server error' }, { status: 500 })
   }
 }

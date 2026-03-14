@@ -3,41 +3,60 @@ import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
+import jwt from 'jsonwebtoken'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
 
 export async function GET(req: NextRequest) {
   try {
-    // Get user session to ensure authentication and get accountId
-    const session = await getServerSession(authOptions)
-    if (!session?.user || !('accountId' in session.user)) {
+    // Check authentication - support both NextAuth and JWT
+    const authHeader = req.headers.get('authorization')
+    let user: any = null
+    
+    if (authHeader?.startsWith('Bearer ')) {
+      const token = authHeader.substring(7)
+      try {
+        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        user = { accountId: decoded.accountId, email: decoded.email }
+      } catch (error) {
+        // JWT verification failed, try NextAuth session
+        const session = await getServerSession(authOptions)
+        user = session?.user
+      }
+    } else {
+      // No JWT token, try NextAuth session
+      const session = await getServerSession(authOptions)
+      user = session?.user
+    }
+    
+    if (!user || !('accountId' in user)) {
       return NextResponse.json({ detail: 'Unauthorized' }, { status: 401 })
     }
     
-    const accountId = new ObjectId(session.user.accountId as string)
+    const accountId = new ObjectId(user.accountId as string)
     
     // Get month filter from query parameters
     const { searchParams } = new URL(req.url)
     const month = searchParams.get('month')
     
     // Build date filter if month is specified
-    const dateFilter = month ? { date: { $regex: `^${month}-` } } : {}
+    // Simplified approach: use MongoDB's date aggregation to extract year-month
+    const dateFilter = month ? {
+      $expr: {
+        $eq: [
+          { $substr: ["$date", 0, 7] }, // Extract YYYY-MM from date string
+          month // Match the requested month (e.g., "2025-05")
+        ]
+      }
+    } : {}
     
     const client = await clientPromise
     const db = client.db(process.env.MONGODB_DB || 'expenses')
     const items = db.collection('line_items')
     
-    // Debug: Check if there are any items for this account
+    // Get total items count for this account
     const totalItems = await items.countDocuments({ accountId: accountId })
-    const totalAllItems = await items.countDocuments({})
-    
-    console.log('Analytics API Debug:', {
-      accountId: accountId.toString(),
-      totalItemsForAccount: totalItems,
-      totalAllItems: totalAllItems,
-      hasAccountId: !!accountId
-    })
 
     // Group by receipt and calculate net totals per receipt
     const receiptTotals = await items.aggregate([
@@ -64,6 +83,14 @@ export async function GET(req: NextRequest) {
       } },
       { $addFields: { netTotal: { $subtract: [ { $add: ['$itemTotal', '$hstTotal'] }, '$discountTotal' ] } } }
     ]).toArray()
+
+    // Debug logging
+    if (month) {
+      console.log(`Analytics API: Found ${receiptTotals.length} receipt records for month ${month}`)
+      if (receiptTotals.length > 0) {
+        console.log(`Sample receipt data:`, receiptTotals.slice(0, 2))
+      }
+    }
 
     const monthly = await items.aggregate([
       { $match: { accountId: accountId, ...dateFilter } },
@@ -157,7 +184,7 @@ export async function GET(req: NextRequest) {
     const recent = await items.aggregate([
       { $match: { accountId: accountId, ...dateFilter } },
       { $sort: { date: -1, _id: -1 } },
-      { $limit: 25 },
+      { $limit: 50 },
       { $project: {
         _id: { $toString: '$_id' },
         receipt_id: { $toString: '$receipt_id' },

@@ -3,8 +3,6 @@ import { useState, useEffect } from 'react'
 import { useSession } from 'next-auth/react'
 import { useRouter } from 'next/navigation'
 
-const STORES = ['Walmart', 'Costco', 'No Frills', 'Loblaws', 'Sobeys', 'Metro', 'Dollarama', 'Shoppers Drug Mart', 'Starbucks', 'Tim Hortons', 'Amazon', 'Other (custom)']
-
 type LineItem = {
   description: string
   category: string | null
@@ -28,6 +26,8 @@ export default function UploadPage() {
   const [error, setError] = useState<string | null>(null)
   const [lineItems, setLineItems] = useState<LineItem[]>([])
   const [categories, setCategories] = useState<string[]>([])
+  const [availableStores, setAvailableStores] = useState<string[]>([])
+  const [storesLoading, setStoresLoading] = useState(true)
   const [showItemsEditor, setShowItemsEditor] = useState(false)
   const [saveLoading, setSaveLoading] = useState(false)
   
@@ -38,18 +38,33 @@ export default function UploadPage() {
     }
   }, [status, router])
   
-  // Load categories on component mount
+  // Load categories and stores on component mount
   useEffect(() => {
-    const loadCategories = async () => {
+    const loadData = async () => {
       try {
-        const res = await fetch('/api/categories')
-        const data = await res.json()
-        setCategories(data.categories || [])
+        const [categoriesRes, storesRes] = await Promise.all([
+          fetch('/api/categories'),
+          fetch('/api/stores')
+        ])
+        
+        const categoriesData = await categoriesRes.json()
+        if (categoriesRes.ok) {
+          setCategories(categoriesData.categories || [])
+        }
+        
+        const storesData = await storesRes.json()
+        if (storesRes.ok) {
+          setAvailableStores(storesData.stores || [])
+          console.log('Stores loaded successfully:', storesData.stores || [])
+        } else {
+          console.error('Failed to load stores:', storesRes.status, storesData)
+        }
+        setStoresLoading(false)
       } catch (err) {
-        console.error('Failed to load categories:', err)
+        console.error('Failed to load data:', err)
       }
     }
-    loadCategories()
+    loadData()
   }, [])
   
   // Show loading while checking authentication
@@ -91,14 +106,18 @@ export default function UploadPage() {
 
     setLoading(true)
     try {
+      console.log('Uploading receipt...')
       const res = await fetch('/api/upload', { method: 'POST', body: fd })
       const json = await res.json()
+      console.log('Upload response:', json)
+      
       if (!res.ok) throw new Error(json?.detail || 'Upload failed')
       
       setLineItems(json.line_items || [])
       setResult(json)
       setShowItemsEditor(true)
     } catch (err: any) {
+      console.error('Upload error:', err)
       setError(err.message)
     } finally {
       setLoading(false)
@@ -121,6 +140,9 @@ export default function UploadPage() {
         date,
         store: effectiveStore
       }))
+      
+      console.log('Saving items:', itemsWithMetadata)
+      console.log('Receipt ID:', result.receipt_id)
 
       const res = await fetch(`/api/receipts/${result.receipt_id}/items`, {
         method: 'PATCH',
@@ -195,9 +217,12 @@ export default function UploadPage() {
                   value={store} 
                   onChange={e => setStore(e.target.value)} 
                   className="form-select"
+                  disabled={storesLoading}
                 >
-                  <option value="">— Select store —</option>
-                  {STORES.map(s => <option key={s} value={s}>{s}</option>)}
+                  <option value="">{storesLoading ? 'Loading stores...' : '— Select store —'}</option>
+                  {!storesLoading && availableStores.length > 0 && availableStores.map(s => <option key={s} value={s}>{s}</option>)}
+                  {!storesLoading && availableStores.length === 0 && <option value="" disabled>No stores found</option>}
+                  {!storesLoading && <option value="Other (custom)">Other (custom)</option>}
                 </select>
               </div>
 
@@ -378,10 +403,12 @@ export default function UploadPage() {
 
       {result && !showItemsEditor && (
         <div className="alert alert-success mt-4" role="alert">
-          <i className="bi bi-check-circle me-2"></i>
-          <strong>Success!</strong> Receipt Saved Successfully!
-          <div className="mt-3">
-            <a href="/dashboard" className="btn btn-primary">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <i className="bi bi-check-circle me-2"></i>
+              <strong>Success!</strong> Receipt Saved Successfully!
+            </div>
+            <a href="/dashboard" className="btn btn-primary btn-sm">
               View Dashboard
             </a>
           </div>

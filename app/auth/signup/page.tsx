@@ -1,17 +1,18 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import Link from 'next/link'
 
-export default function SignUpPage() {
+function SignUpForm() {
   const [formData, setFormData] = useState({
     name: '',
     email: '',
     password: '',
     confirmPassword: '',
     accountName: '',
-    accountDescription: ''
+    accountDescription: '',
+    website: '' // Honeypot field
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -78,6 +79,7 @@ export default function SignUpPage() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        website: formData.website, // Honeypot field
         ...(isInvitation ? {} : {
           accountName: formData.accountName,
           accountDescription: formData.accountDescription
@@ -247,6 +249,19 @@ export default function SignUpPage() {
                       </div>
                     </>
                   )}
+
+                  {/* Honeypot field - hidden from users, bots will fill it */}
+                  <div style={{ position: 'absolute', left: '-9999px', opacity: 0, pointerEvents: 'none' }}>
+                    <label htmlFor="website">Website (leave blank)</label>
+                    <input
+                      type="text"
+                      id="website"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      onChange={handleChange}
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-4">
@@ -282,5 +297,26 @@ export default function SignUpPage() {
       
 
     </div>
+  )
+}
+
+export default function SignUpPage() {
+  return (
+    <Suspense fallback={
+      <div className="container py-5">
+        <div className="row justify-content-center">
+          <div className="col-12 col-md-6 col-lg-4">
+            <div className="text-center">
+              <div className="spinner-border" role="status">
+                <span className="visually-hidden">Loading...</span>
+              </div>
+              <p className="mt-3">Loading signup form...</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    }>
+      <SignUpForm />
+    </Suspense>
   )
 }
