@@ -4,7 +4,7 @@ import { authOptions } from '@/lib/auth'
 import clientPromise from '@/lib/mongodb'
 import { ObjectId } from 'mongodb'
 import { apiRateLimit } from '@/lib/rate-limit'
-import jwt from 'jsonwebtoken'
+import { verifyMobileToken } from '@/lib/mobile-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -22,7 +22,7 @@ export async function GET(req: NextRequest) {
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
       try {
-        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        const decoded = verifyMobileToken(token)
         user = { accountId: decoded.accountId, email: decoded.email }
       } catch (error) {
         // JWT verification failed, try NextAuth session

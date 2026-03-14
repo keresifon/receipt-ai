@@ -1,10 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import bcrypt from 'bcryptjs'
 import clientPromise from '@/lib/mongodb'
-import jwt from 'jsonwebtoken'
 import { z } from 'zod'
 import { authRateLimit } from '@/lib/rate-limit'
 import { auditLogger } from '@/lib/audit-log'
+import { signMobileToken } from '@/lib/mobile-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -75,17 +75,13 @@ export async function POST(req: NextRequest) {
     }
 
     // Create JWT token
-    const token = jwt.sign(
-      {
-        userId: user._id.toString(),
-        email: user.email,
-        accountId: user.accountId.toString(),
-        role: user.role,
-        emailVerified: user.emailVerified || false
-      },
-      process.env.NEXTAUTH_SECRET!,
-      { expiresIn: '24h' }
-    )
+    const token = signMobileToken({
+      userId: user._id.toString(),
+      email: user.email,
+      accountId: user.accountId.toString(),
+      role: user.role,
+      emailVerified: user.emailVerified || false
+    })
 
     // Log successful login
     await auditLogger.logSecurityEvent(

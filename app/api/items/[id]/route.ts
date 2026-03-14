@@ -4,7 +4,7 @@ import { ObjectId } from 'mongodb'
 import { z } from 'zod'
 import { getServerSession } from 'next-auth'
 import { authOptions } from '@/lib/auth'
-import jwt from 'jsonwebtoken'
+import { verifyMobileToken } from '@/lib/mobile-auth'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -30,7 +30,7 @@ export async function PATCH(req: NextRequest, { params }: { params: { id: string
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
       try {
-        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        const decoded = verifyMobileToken(token)
         user = { accountId: decoded.accountId, email: decoded.email }
       } catch (error) {
         // JWT verification failed, try NextAuth session
@@ -84,7 +84,7 @@ export async function DELETE(req: NextRequest, { params }: { params: { id: strin
     if (authHeader?.startsWith('Bearer ')) {
       const token = authHeader.substring(7)
       try {
-        const decoded = jwt.verify(token, process.env.NEXTAUTH_SECRET!) as any
+        const decoded = verifyMobileToken(token)
         user = { accountId: decoded.accountId, email: decoded.email }
       } catch (error) {
         // JWT verification failed, try NextAuth session
