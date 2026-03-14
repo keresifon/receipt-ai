@@ -17,6 +17,8 @@
 
 # Database backups with sensitive data
 scripts/backups/
+# Local/maintenance scripts not used in app runtime
+scripts/
 *.json
 *.csv
 
