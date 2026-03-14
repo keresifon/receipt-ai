@@ -3,7 +3,6 @@
 import { createContext, useContext, useEffect, useState } from 'react'
 import { useSession, signOut } from 'next-auth/react'
 import { User, Account, AuthContextType } from '@/types/auth'
-import clientPromise from '@/lib/mongodb'
 
 const AuthContext = createContext<AuthContextType>({
   user: null,
