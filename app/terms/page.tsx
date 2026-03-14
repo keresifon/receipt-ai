@@ -16,7 +16,7 @@ export default function TermsOfService() {
                 <div className="d-flex">
                   <span className="badge bg-primary fs-6 me-3">
                     <i className="bi bi-file-text me-1"></i>
-                    Last updated: September 16, 2025
+                    Last updated: December 19, 2024
                   </span>
                 </div>
               </div>
@@ -283,8 +283,86 @@ export default function TermsOfService() {
 
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
+                      <i className="bi bi-calendar-x text-primary me-2"></i>
+                      11. Data Retention Policy
+                    </h2>
+                    
+                    <div className="card bg-warning bg-opacity-10 mb-4">
+                      <div className="card-body">
+                        <h4 className="h5 fw-semibold text-dark mb-3">11.1 Free Account Data Retention</h4>
+                        <div className="alert alert-info mb-3">
+                          <i className="bi bi-calendar-event me-2"></i>
+                          <strong>Policy Effective Date:</strong> This data retention policy will begin on January 1, 2027. All existing data will be preserved until then.
+                        </div>
+                        <p className="text-muted mb-3">
+                          For free accounts, we implement an automated data retention policy to manage storage costs and ensure optimal service performance:
+                        </p>
+                        <ul className="list-unstyled">
+                          <li className="mb-2"><i className="bi bi-calendar-check text-warning me-2"></i><strong>Retention Period:</strong> Receipt data older than 1 year is automatically deleted</li>
+                          <li className="mb-2"><i className="bi bi-clock text-info me-2"></i><strong>Grace Period:</strong> You have 30 days after the retention date to download your data before permanent deletion</li>
+                          <li className="mb-2"><i className="bi bi-bell text-primary me-2"></i><strong>Notifications:</strong> We will notify you via email 45, 15, and 3 days before data deletion</li>
+                          <li className="mb-2"><i className="bi bi-download text-success me-2"></i><strong>Data Export:</strong> During the grace period, you can download all your data free of charge</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="card bg-success bg-opacity-10 mb-4">
+                      <div className="card-body">
+                        <h4 className="h5 fw-semibold text-dark mb-3">11.2 Premium Account Data Retention</h4>
+                        <p className="text-muted mb-3">
+                          Premium subscribers enjoy extended data retention:
+                        </p>
+                        <ul className="list-unstyled">
+                          <li className="mb-2"><i className="bi bi-calendar-check text-success me-2"></i><strong>Retention Period:</strong> Receipt data is retained for 5 years</li>
+                          <li className="mb-2"><i className="bi bi-download text-primary me-2"></i><strong>Unlimited Exports:</strong> Download your data at any time without restrictions</li>
+                          <li className="mb-2"><i className="bi bi-shield-check text-info me-2"></i><strong>No Automatic Deletion:</strong> Your data is never automatically deleted while your subscription is active</li>
+                        </ul>
+                      </div>
+                    </div>
+
+                    <div className="card bg-info bg-opacity-10 mb-4">
+                      <div className="card-body">
+                        <h4 className="h5 fw-semibold text-dark mb-3">11.3 Data Retention Schedule</h4>
+                        <p className="text-muted mb-3">
+                          Data cleanup occurs automatically on the following schedule starting January 2027:
+                        </p>
+                        <div className="row g-3">
+                          <div className="col-md-6">
+                            <div className="d-flex align-items-center p-3 bg-light rounded">
+                              <i className="bi bi-calendar-event text-primary me-3"></i>
+                              <div>
+                                <div className="fw-semibold">First Cleanup</div>
+                                <div className="small text-muted">January 31, 2027</div>
+                              </div>
+                            </div>
+                          </div>
+                          <div className="col-md-6">
+                            <div className="d-flex align-items-center p-3 bg-light rounded">
+                              <i className="bi bi-hourglass-split text-warning me-3"></i>
+                              <div>
+                                <div className="fw-semibold">Grace Period</div>
+                                <div className="small text-muted">30 days after cleanup date</div>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="alert alert-success mt-3">
+                          <i className="bi bi-shield-check me-2"></i>
+                          <strong>Grandfathering:</strong> All data uploaded before January 1, 2027 will be preserved and not subject to the 1-year retention limit.
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="alert alert-info">
+                      <i className="bi bi-info-circle me-2"></i>
+                      <strong>Important:</strong> Once data is deleted after the grace period, it cannot be recovered. We strongly recommend upgrading to Premium or downloading your data during the grace period if you need longer retention.
+                    </div>
+                  </section>
+
+                  <section className="mb-5">
+                    <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-arrow-clockwise text-primary me-2"></i>
-                      11. Modifications to Terms
+                      12. Modifications to Terms
                     </h2>
                     <p className="text-muted">
                       We reserve the right, at our sole discretion, to modify or replace these Terms at any time. If a revision is material, we will try to provide at least 30 days notice prior to any new terms taking effect.
@@ -294,7 +372,7 @@ export default function TermsOfService() {
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-scale text-primary me-2"></i>
-                      12. Governing Law
+                      13. Governing Law
                     </h2>
                     <p className="text-muted">
                       These Terms shall be interpreted and governed by the laws of Canada, without regard to its conflict of law provisions. Our failure to enforce any right or provision of these Terms will not be considered a waiver of those rights.
@@ -304,7 +382,7 @@ export default function TermsOfService() {
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-scissors text-primary me-2"></i>
-                      13. Severability
+                      14. Severability
                     </h2>
                     <p className="text-muted">
                       If any provision of these Terms is held to be invalid or unenforceable by a court, the remaining provisions of these Terms will remain in effect.
@@ -314,7 +392,7 @@ export default function TermsOfService() {
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-envelope text-primary me-2"></i>
-                      14. Contact Information
+                      15. Contact Information
                     </h2>
                     <p className="text-muted mb-4">
                       If you have any questions about these Terms of Service, please contact us at:
@@ -322,25 +400,18 @@ export default function TermsOfService() {
                     <div className="card bg-dark text-white">
                       <div className="card-body">
                         <div className="row g-3">
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <div className="text-center">
                               <i className="bi bi-envelope fs-2 mb-2"></i>
                               <div className="fw-semibold">Email</div>
                               <div className="small">legal@no-wahala.net</div>
                             </div>
                           </div>
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <div className="text-center">
                               <i className="bi bi-globe fs-2 mb-2"></i>
                               <div className="fw-semibold">Website</div>
                               <div className="small">https://no-wahala.net</div>
-                            </div>
-                          </div>
-                          <div className="col-md-4">
-                            <div className="text-center">
-                              <i className="bi bi-geo-alt fs-2 mb-2"></i>
-                              <div className="fw-semibold">Address</div>
-                              <div className="small">[Your Business Address]</div>
                             </div>
                           </div>
                         </div>

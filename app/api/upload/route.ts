@@ -150,7 +150,7 @@ export async function POST(req: NextRequest) {
     const base64Image = buf.toString('base64')
 
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string)
-    const model = genAI.getGenerativeModel({ model: 'gemini-1.5-flash' })
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
     const system = `Extract receipt summary and line items. Return ONLY JSON with keys:
 merchant (string|null), date (YYYY-MM-DD|null), notes (string|null), totals (object with subtotal, tax, total, currency all nullable), line_items (array of {description (string), category (string|null), quantity (number|null), unit_price (number|null), total_price (number), hst (number|null), discount (number|null)}).

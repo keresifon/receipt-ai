@@ -48,13 +48,22 @@ export default function HomePage() {
                 Organize your family's expenses with AI-powered receipt scanning, 
                 collaborative tracking, and insightful analytics.
               </p>
-              <div className="d-flex gap-3">
+              <div className="d-flex gap-3 flex-wrap">
                 <Link href="/auth/signup" className="btn btn-light btn-lg px-4">
                   Get Started Free
                 </Link>
                 <Link href="/auth/signin" className="btn btn-outline-light btn-lg px-4">
                   Sign In
                 </Link>
+                <a 
+                  href="https://apps.apple.com/ca/app/no-wahala-receipt/id6752734272" 
+                  target="_blank" 
+                  rel="noopener noreferrer"
+                  className="btn btn-outline-light btn-lg px-4 d-flex align-items-center gap-2"
+                >
+                  <i className="bi bi-apple"></i>
+                  Download App
+                </a>
               </div>
             </div>
             <div className="col-lg-6">

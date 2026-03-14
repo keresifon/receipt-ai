@@ -58,13 +58,30 @@ export async function POST(req: NextRequest) {
       }, { status: 200 })
     }
 
+    // Check if email verification is required for new users
+    // For now, disable email verification requirement to match NextAuth behavior
+    // TODO: Implement consistent email verification logic across all auth methods
+    const verificationRolloutDate = new Date('2025-01-01T00:00:00Z') // Set rollout date
+    const isNewUser = user.createdAt > verificationRolloutDate
+    const requiresVerification = false // Disabled to match NextAuth behavior
+
+    if (requiresVerification) {
+      return NextResponse.json({ 
+        detail: 'Email verification required',
+        requiresVerification: true,
+        emailVerified: false,
+        verificationUrl: `${process.env.SITE_URL || 'https://no-wahala.net'}/auth/verify-email`
+      }, { status: 403 })
+    }
+
     // Create JWT token
     const token = jwt.sign(
       {
         userId: user._id.toString(),
         email: user.email,
         accountId: user.accountId.toString(),
-        role: user.role
+        role: user.role,
+        emailVerified: user.emailVerified || false
       },
       process.env.NEXTAUTH_SECRET!,
       { expiresIn: '24h' }
@@ -90,7 +107,8 @@ export async function POST(req: NextRequest) {
         email: user.email,
         name: user.name,
         accountId: user.accountId.toString(),
-        role: user.role
+        role: user.role,
+        emailVerified: user.emailVerified || false
       }
     })
 

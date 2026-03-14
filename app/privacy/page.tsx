@@ -301,10 +301,114 @@ export default function PrivacyPolicy() {
                     </div>
                   </section>
 
+                  <section className="mb-5" id="account-deletion">
+                    <h2 className="h3 fw-bold text-dark mb-3">
+                      <i className="bi bi-person-x text-primary me-2"></i>
+                      8. Account Deletion
+                    </h2>
+                    <div className="alert alert-info">
+                      <h4 className="h5 fw-semibold mb-3">
+                        <i className="bi bi-info-circle me-2"></i>
+                        How to Delete Your ReceiptAI Account
+                      </h4>
+                      <p className="mb-3">
+                        You can request deletion of your account and associated data at any time. Here are the steps:
+                      </p>
+                      
+                      <div className="row g-3 mb-4">
+                        <div className="col-md-6">
+                          <div className="card h-100">
+                            <div className="card-body">
+                              <h5 className="card-title">
+                                <i className="bi bi-phone text-primary me-2"></i>
+                                Through the App
+                              </h5>
+                              <ol className="mb-0">
+                                <li>Log into your ReceiptAI account</li>
+                                <li>Go to Settings → Account Settings</li>
+                                <li>Scroll to "Delete Account" section</li>
+                                <li>Click "Request Account Deletion"</li>
+                                <li>Confirm your request</li>
+                              </ol>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="card h-100">
+                            <div className="card-body">
+                              <h5 className="card-title">
+                                <i className="bi bi-envelope text-success me-2"></i>
+                                Via Email
+                              </h5>
+                              <p className="mb-2">Email us at:</p>
+                              <div className="bg-light p-2 rounded mb-2">
+                                <strong>support@no-wahala.net</strong>
+                              </div>
+                              <p className="mb-1">Include:</p>
+                              <ul className="mb-0 small">
+                                <li>Subject: "Account Deletion Request"</li>
+                                <li>Your email address</li>
+                                <li>Confirmation of deletion request</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="row g-3">
+                        <div className="col-md-6">
+                          <div className="card border-success">
+                            <div className="card-header bg-success text-white">
+                              <h5 className="mb-0">
+                                <i className="bi bi-check-circle me-2"></i>
+                                Data That Will Be Deleted
+                              </h5>
+                            </div>
+                            <div className="card-body">
+                              <ul className="list-unstyled mb-0">
+                                <li className="mb-2"><i className="bi bi-check text-success me-2"></i>Personal information (name, email)</li>
+                                <li className="mb-2"><i className="bi bi-check text-success me-2"></i>Receipt photos and data</li>
+                                <li className="mb-2"><i className="bi bi-check text-success me-2"></i>Expense records</li>
+                                <li className="mb-2"><i className="bi bi-check text-success me-2"></i>Account settings and preferences</li>
+                                <li className="mb-0"><i className="bi bi-check text-success me-2"></i>All financial data</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                        <div className="col-md-6">
+                          <div className="card border-warning">
+                            <div className="card-header bg-warning text-dark">
+                              <h5 className="mb-0">
+                                <i className="bi bi-info-circle me-2"></i>
+                                Data Retention Policy
+                              </h5>
+                            </div>
+                            <div className="card-body">
+                              <p className="mb-2"><strong>Processing Time:</strong></p>
+                              <p className="mb-3">Account deletion processed within 30 days</p>
+                              
+                              <p className="mb-2"><strong>Data That May Be Retained:</strong></p>
+                              <ul className="list-unstyled mb-0 small">
+                                <li className="mb-1"><i className="bi bi-graph-up text-info me-2"></i>Anonymized analytics (no personal identifiers)</li>
+                                <li className="mb-1"><i className="bi bi-shield-check text-warning me-2"></i>Legal compliance records (if required)</li>
+                                <li className="mb-0"><i className="bi bi-bar-chart text-secondary me-2"></i>Aggregated usage statistics</li>
+                              </ul>
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+
+                      <div className="alert alert-warning mt-4">
+                        <i className="bi bi-exclamation-triangle me-2"></i>
+                        <strong>Important:</strong> Once your account is deleted, this action cannot be undone. You will lose access to all your receipt data, expense records, and account settings. Please export any data you wish to keep before requesting account deletion.
+                      </div>
+                    </div>
+                  </section>
+
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-heart text-primary me-2"></i>
-                      8. Children's Privacy
+                      9. Children's Privacy
                     </h2>
                     <div className="alert alert-warning">
                       <i className="bi bi-exclamation-triangle me-2"></i>
@@ -315,7 +419,7 @@ export default function PrivacyPolicy() {
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-globe text-primary me-2"></i>
-                      9. International Data Transfers
+                      10. International Data Transfers
                     </h2>
                     <p className="text-muted">
                       Your information may be transferred to and processed in countries other than your own. We ensure that such transfers comply with applicable data protection laws and implement appropriate safeguards.
@@ -325,7 +429,7 @@ export default function PrivacyPolicy() {
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-arrow-clockwise text-primary me-2"></i>
-                      10. Changes to This Privacy Policy
+                      11. Changes to This Privacy Policy
                     </h2>
                     <p className="text-muted">
                       We may update this Privacy Policy from time to time. We will notify you of any changes by posting the new Privacy Policy on this page and updating the "Last updated" date. We encourage you to review this Privacy Policy periodically for any changes.
@@ -335,7 +439,7 @@ export default function PrivacyPolicy() {
                   <section className="mb-5">
                     <h2 className="h3 fw-bold text-dark mb-3">
                       <i className="bi bi-envelope text-primary me-2"></i>
-                      11. Contact Us
+                      12. Contact Us
                     </h2>
                     <p className="text-muted mb-4">
                       If you have any questions about this Privacy Policy or our privacy practices, please contact us at:
@@ -343,25 +447,18 @@ export default function PrivacyPolicy() {
                     <div className="card bg-dark text-white">
                       <div className="card-body">
                         <div className="row g-3">
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <div className="text-center">
                               <i className="bi bi-envelope fs-2 mb-2"></i>
                               <div className="fw-semibold">Email</div>
                               <div className="small">privacy@no-wahala.net</div>
                             </div>
                           </div>
-                          <div className="col-md-4">
+                          <div className="col-md-6">
                             <div className="text-center">
                               <i className="bi bi-globe fs-2 mb-2"></i>
                               <div className="fw-semibold">Website</div>
                               <div className="small">https://no-wahala.net</div>
-                            </div>
-                          </div>
-                          <div className="col-md-4">
-                            <div className="text-center">
-                              <i className="bi bi-geo-alt fs-2 mb-2"></i>
-                              <div className="fw-semibold">Address</div>
-                              <div className="small">[Your Business Address]</div>
                             </div>
                           </div>
                         </div>

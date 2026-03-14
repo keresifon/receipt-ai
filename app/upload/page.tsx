@@ -403,10 +403,12 @@ export default function UploadPage() {
 
       {result && !showItemsEditor && (
         <div className="alert alert-success mt-4" role="alert">
-          <i className="bi bi-check-circle me-2"></i>
-          <strong>Success!</strong> Receipt Saved Successfully!
-          <div className="mt-3">
-            <a href="/dashboard" className="btn btn-primary">
+          <div className="d-flex align-items-center justify-content-between">
+            <div className="d-flex align-items-center">
+              <i className="bi bi-check-circle me-2"></i>
+              <strong>Success!</strong> Receipt Saved Successfully!
+            </div>
+            <a href="/dashboard" className="btn btn-primary btn-sm">
               View Dashboard
             </a>
           </div>

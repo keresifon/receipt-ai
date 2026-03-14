@@ -11,7 +11,8 @@ function SignUpForm() {
     password: '',
     confirmPassword: '',
     accountName: '',
-    accountDescription: ''
+    accountDescription: '',
+    website: '' // Honeypot field
   })
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
@@ -78,6 +79,7 @@ function SignUpForm() {
         name: formData.name,
         email: formData.email,
         password: formData.password,
+        website: formData.website, // Honeypot field
         ...(isInvitation ? {} : {
           accountName: formData.accountName,
           accountDescription: formData.accountDescription
@@ -247,6 +249,19 @@ function SignUpForm() {
                       </div>
                     </>
                   )}
+
+                  {/* Honeypot field - hidden from users, bots will fill it */}
+                  <div style={{ position: 'absolute', left: '-9999px', opacity: 0, pointerEvents: 'none' }}>
+                    <label htmlFor="website">Website (leave blank)</label>
+                    <input
+                      type="text"
+                      id="website"
+                      name="website"
+                      tabIndex={-1}
+                      autoComplete="off"
+                      onChange={handleChange}
+                    />
+                  </div>
                 </div>
 
                 <div className="mt-4">

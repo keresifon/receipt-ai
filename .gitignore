@@ -4,6 +4,7 @@
 .env.development.local
 .env.test.local
 .env.production.local
+.env*.local
 
 # Sensitive files - NEVER COMMIT THESE
 *credentials*
@@ -23,34 +24,46 @@ scripts/backups/
 check-*.js
 test-*.js
 
-# Next.js
+# Next.js build output
 .next/
 out/
+.next/cache/
+.next/standalone/
+.next/static/
 
-# Production
+# TypeScript build artifacts
+*.tsbuildinfo
+tsconfig.tsbuildinfo
+*.d.ts.map
+
+# Production builds
 build/
 dist/
+out/
 
 # Dependencies
 node_modules/
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+.nyc_output
+*.lcov
 
 # Logs
 *.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
 
 # Runtime data
 pids
 *.pid
 *.seed
 *.pid.lock
-
-# Coverage directory used by tools like istanbul
-coverage/
-
-# nyc test coverage
-.nyc_output
 
 # Dependency directories
 jspm_packages/
@@ -64,20 +77,19 @@ jspm_packages/
 # Output of 'npm pack'
 *.tgz
 
+# Yarn
+.yarn/cache
+.yarn/unplugged
+.yarn/build-state.yml
+.yarn/install-state.gz
+.pnp.*
+
 # Yarn Integrity file
 .yarn-integrity
 
-# dotenv environment variables file
-.env
-.env.test
-.env.production
-
-# parcel-bundler cache (https://parceljs.org/)
+# parcel-bundler cache
 .cache
 .parcel-cache
-
-# next.js build output
-.next
 
 # nuxt.js build output
 .nuxt
@@ -86,7 +98,7 @@ jspm_packages/
 .vuepress/dist
 
 # Serverless directories
-.serverless
+.serverless/
 
 # FuseBox cache
 .fusebox/
@@ -97,23 +109,107 @@ jspm_packages/
 # TernJS port file
 .tern-port
 
+# Stores VSCode versions used for testing VSCode extensions
+.vscode-test
+
 # macOS
 .DS_Store
+.AppleDouble
+.LSOverride
+Icon
+._*
+.DocumentRevisions-V100
+.fseventsd
+.Spotlight-V100
+.TemporaryItems
+.Trashes
+.VolumeIcon.icns
+.com.apple.timemachine.donotpresent
+.AppleDB
+.AppleDesktop
+Network Trash Folder
+Temporary Items
+.apdisk
 
 # Windows
 Thumbs.db
+Thumbs.db:encryptable
 ehthumbs.db
-Desktop.ini
+ehthumbs_vista.db
+*.stackdump
+[Dd]esktop.ini
+$RECYCLE.BIN/
+*.cab
+*.msi
+*.msix
+*.msm
+*.msp
+*.lnk
 
 # Linux
 *~
+.fuse_hidden*
+.directory
+.Trash-*
+.nfs*
 
-# IDE
+# IDE - VSCode
 .vscode/
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+!.vscode/extensions.json
+*.code-workspace
+
+# IDE - JetBrains
 .idea/
+*.iml
+*.iws
+*.ipr
+out/
+
+# IDE - Vim
 *.swp
 *.swo
+*~
+.*.sw?
+
+# IDE - Emacs
+*~
+\#*\#
+/.emacs.desktop
+/.emacs.desktop.lock
+*.elc
+auto-save-list
+tramp
+.\#*
 
 # Temporary files
 *.tmp
 *.temp
+*.bak
+*.backup
+*.old
+
+# Debug files
+*.pdb
+*.idb
+*.ilk
+*.exp
+
+# OS generated files
+.directory
+.Trash-*
+
+# PM2
+.pm2/
+*.pid
+
+# Debug artifacts
+bugreport*.zip
+*.crash
+*.dmp
+
+# Local development
+.local/
+local/

@@ -184,7 +184,7 @@ export async function GET(req: NextRequest) {
     const recent = await items.aggregate([
       { $match: { accountId: accountId, ...dateFilter } },
       { $sort: { date: -1, _id: -1 } },
-      { $limit: 25 },
+      { $limit: 50 },
       { $project: {
         _id: { $toString: '$_id' },
         receipt_id: { $toString: '$receipt_id' },

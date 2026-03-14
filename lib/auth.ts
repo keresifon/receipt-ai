@@ -54,7 +54,9 @@ export const authOptions = {
               accountId: user.accountId.toString(),
               role: user.role,
               requires2FA: true,
-              twoFactorSecret: twoFactorData.secret
+              twoFactorSecret: twoFactorData.secret,
+              emailVerified: user.emailVerified || false,
+              createdAt: user.createdAt
             }
           }
 
@@ -68,7 +70,9 @@ export const authOptions = {
               accountId: user.accountId.toString(),
               role: user.role,
               requires2FA: false,
-              twoFactorVerified: true
+              twoFactorVerified: true,
+              emailVerified: user.emailVerified || false,
+              createdAt: user.createdAt
             }
           }
 
@@ -79,7 +83,9 @@ export const authOptions = {
             name: user.name,
             accountId: user.accountId.toString(),
             role: user.role,
-            requires2FA: false
+            requires2FA: false,
+            emailVerified: user.emailVerified || false,
+            createdAt: user.createdAt
           }
         } catch (error) {
           console.error('Auth error:', error)
@@ -114,6 +120,8 @@ export const authOptions = {
         token.requires2FA = user.requires2FA
         token.twoFactorSecret = user.twoFactorSecret
         token.twoFactorVerified = false // Start as unverified
+        token.emailVerified = user.emailVerified
+        token.createdAt = user.createdAt
       }
       // Refresh/rotate every 15 minutes
       const fifteenMinutes = 15 * 60 * 1000
@@ -130,6 +138,7 @@ export const authOptions = {
         session.user.lastActivity = token.lastActivity
         session.user.requires2FA = token.requires2FA
         session.user.twoFactorVerified = token.twoFactorVerified
+        session.user.emailVerified = token.emailVerified
       }
       return session
     },

@@ -67,6 +67,11 @@ export async function GET(req: NextRequest) {
       })
     )
 
+    // Check if email verification is required for new users
+    const verificationRolloutDate = new Date('2025-01-01T00:00:00Z') // Set rollout date
+    const isNewUser = userInfo?.createdAt > verificationRolloutDate
+    const requiresVerification = isNewUser && !userInfo?.emailVerified
+
     // Return structured response matching the iOS app's expectations
     const response = {
       user: {
@@ -74,7 +79,9 @@ export async function GET(req: NextRequest) {
         email: user.email || userInfo?.email || 'Unknown',
         name: userInfo?.name || 'Unknown',
         accountId: user.accountId,
-        role: user.role || 'member'
+        role: user.role || 'member',
+        emailVerified: userInfo?.emailVerified || false,
+        requiresVerification: requiresVerification
       },
       account: {
         id: account._id?.toString(),
