@@ -4,6 +4,7 @@ import { z } from 'zod'
 import { sanitizeSearchQuery } from '@/lib/sanitize'
 import { apiRateLimit } from '@/lib/rate-limit'
 import { randomUUID } from 'crypto'
+import { RECEIPT_AI_SYSTEM_PROMPT, enrichReceiptExtract } from '@/lib/receipt-extract'
 
 export const runtime = 'nodejs'
 export const dynamic = 'force-dynamic'
@@ -131,19 +132,16 @@ export async function POST(req: NextRequest) {
     const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY as string)
     const model = genAI.getGenerativeModel({ model: 'gemini-2.5-flash' })
 
-    const system = `Extract receipt summary and line items. Return ONLY JSON with keys:
-merchant (string|null), date (YYYY-MM-DD|null), notes (string|null), totals (object with subtotal, tax, total, currency all nullable), line_items (array of {description (string), category (string|null), quantity (number|null), unit_price (number|null), total_price (number), hst (number|null), discount (number|null)}).
-Use null for unknowns. Normalize numbers to decimals (no currency symbols). Extract HST (Harmonized Sales Tax) and discount amounts for each line item when present. No commentary.`
-
     const result = await model.generateContent([
-      { text: system },
+      { text: RECEIPT_AI_SYSTEM_PROMPT },
       { inlineData: { data: base64Image, mimeType: file.type } },
     ])
 
     const text =
       result.response?.candidates?.[0]?.content?.parts?.map((p) => ('text' in p ? p.text : '')).join('') || '{}'
     const json = coerceJson(text)
-    const parsed: Receipt = ReceiptSchema.parse(json)
+    let parsed: Receipt = ReceiptSchema.parse(json)
+    parsed = ReceiptSchema.parse(enrichReceiptExtract(parsed) as Receipt)
 
     const date = userDate || parsed.date || ''
     const merchant = sanitizedMerchant || parsed.merchant || ''
