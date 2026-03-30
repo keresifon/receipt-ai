@@ -49,6 +49,7 @@ export const config = {
     '/records',
     '/account',
     '/api/upload',
+    '/api/upload/guest',
     '/api/analytics',
     '/api/records',
     '/api/items/:path*',
