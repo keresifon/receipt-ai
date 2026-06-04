@@ -1,4 +1,5 @@
 import '../styles/globals.css'
+import Link from 'next/link'
 import type { ReactNode } from 'react'
 import { NextAuthProvider } from './providers/NextAuthProvider'
 import { AuthProvider } from './providers/AuthProvider'
