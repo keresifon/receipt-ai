@@ -38,8 +38,19 @@ export default function RootLayout({ children }: { children: ReactNode }) {
                   <div className="row align-items-center">
                     <div className="col-md-6 text-center text-md-start">
                       <p className="mb-0">
-                        © 2025 No-wahala.net. All rights reserved.
+                        © {new Date().getFullYear()} No-wahala.net. All rights reserved.
                       </p>
+                      <div className="d-flex flex-wrap gap-3 justify-content-md-end align-items-center">
+                        <Link href="/privacy" className="text-white-50 text-decoration-none small">
+                          Privacy
+                        </Link>
+                        <Link href="/terms" className="text-white-50 text-decoration-none small">
+                          Terms
+                        </Link>
+                        <Link href="/delete-account" className="text-white-50 text-decoration-none small">
+                          Delete Account
+                        </Link>
+                      </div>
                     </div>
                     <div className="col-md-6 text-center text-md-end">
                       <a 
