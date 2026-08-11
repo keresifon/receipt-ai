@@ -1,22 +1,28 @@
-import { MongoClient } from 'mongodb'
+import { MongoClient, type MongoClientOptions } from 'mongodb'
 
 const uri = process.env.MONGODB_URI as string
 if (!uri) throw new Error('Missing MONGODB_URI')
 
-let client: MongoClient | null = null
-let clientPromise: Promise<MongoClient>
-
-const globalWithMongo = global as typeof globalThis & { _mongoClientPromise?: Promise<MongoClient> }
-
-if (process.env.NODE_ENV === 'development') {
-  if (!globalWithMongo._mongoClientPromise) {
-    client = new MongoClient(uri)
-    globalWithMongo._mongoClientPromise = client.connect()
-  }
-  clientPromise = globalWithMongo._mongoClientPromise
-} else {
-  client = new MongoClient(uri)
-  clientPromise = client.connect()
+const options: MongoClientOptions = {
+  maxPoolSize: 5, // keep low on shared free-tier Atlas (500 connection limit)
+  minPoolSize: 0, // don't hold idle sockets on serverless
+  maxIdleTimeMS: 10_000,
+  appName: process.env.MONGODB_APP_NAME || 'nowahala-receipt',
 }
+
+declare global {
+  // eslint-disable-next-line no-var
+  var _mongoClientPromise: Promise<MongoClient> | undefined
+}
+
+function getClientPromise(): Promise<MongoClient> {
+  if (!globalThis._mongoClientPromise) {
+    const client = new MongoClient(uri, options)
+    globalThis._mongoClientPromise = client.connect()
+  }
+  return globalThis._mongoClientPromise
+}
+
+const clientPromise = getClientPromise()
 
 export default clientPromise
